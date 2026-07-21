@@ -5,15 +5,19 @@ __pycache__/
 venv/
 *.egg-info/
 .pytest_cache/
+.pytest-tmp/
+pytest-cache-files-*/
 .ruff_cache/
 .mypy_cache/
+.uv-cache/
 
-# Generated run outputs — never committed; runs of record are identified
-# by their run_identity, not by living in the repository.
+# Exploratory run outputs are ignored. Brief 1's selected clean reference run
+# is the single explicit exception below.
 runs/
 outputs/
 *.npz
 !fixtures/*.npz
+!reference_runs/brief1_seed_0.npz
 
 # OS
 .DS_Store
