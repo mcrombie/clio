@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Generated run outputs — never committed; runs of record are identified
+# by their run_identity, not by living in the repository.
+runs/
+outputs/
+*.npz
+!fixtures/*.npz
+
+# OS
+.DS_Store
+Thumbs.db
