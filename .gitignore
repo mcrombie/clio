@@ -1,24 +1,36 @@
-# Python
-__pycache__/
-*.py[cod]
-.venv/
-venv/
-*.egg-info/
-.pytest_cache/
-.pytest-tmp/
-pytest-cache-files-*/
-.ruff_cache/
-.mypy_cache/
-.uv-cache/
+# Generated native builds and development output
+/build/
+/artifacts/
+**/bin/
+**/obj/
 
-# Exploratory run outputs are ignored. Brief 1's selected clean reference run
-# is the single explicit exception below.
-runs/
-outputs/
-*.npz
-!fixtures/*.npz
-!reference_runs/brief1_seed_0.npz
+# Player stories, temporary files and local recordings
+*.clio
+*.tmp
+*.log
+/recordings/
+/captures/
+/.tmp/
+/tmp/
 
-# OS
-.DS_Store
+# Local editor configuration and credentials
+.vs/
+.vscode/
+.idea/
+.env
+.env.*
+*.user
+*.suo
+*.userprefs
+
+# Generated Unity state
+unity/Library/
+unity/Temp/
+unity/Logs/
+unity/UserSettings/
+unity/Build/
+unity/Builds/
+
+# Operating-system metadata
 Thumbs.db
+.DS_Store

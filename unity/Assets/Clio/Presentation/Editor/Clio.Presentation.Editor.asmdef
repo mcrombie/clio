@@ -1,0 +1,7 @@
+{
+  "name": "Clio.Presentation.Editor",
+  "rootNamespace": "Clio.Presentation.Editor",
+  "references": ["Clio.Presentation", "Unity.RenderPipelines.Core.Runtime", "Unity.RenderPipelines.HighDefinition.Runtime"],
+  "includePlatforms": ["Editor"],
+  "autoReferenced": true
+}

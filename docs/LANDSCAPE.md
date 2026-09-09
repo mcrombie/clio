@@ -1,0 +1,21 @@
+# A map of opportunities and journeys
+
+The map takes layout direction from the supplied Humankind images while retaining Clio's historical typography and original illustrated world. Food, salt and exploration highlights identify useful places. They are hints about actual game systems: food and salt still require gathering actions, and exploration reveals land rather than granting a fictional pickup.
+
+The regional camera starts closer to the people and compresses the vertical projection for a gently oblique view. This gives the illustrated land and unit figures more room on screen. Zooming out progressively restores the globe's proportions. It is an illustrated relief map, not a three-dimensional terrain engine.
+
+Neighboring observed mountain tiles share aligned ridges, broad shoulders and low foothills. Forests form uneven stands with varied tree heights, older trees and meadow openings. Known river courses have wider water, irregular meadow banks and clearings through nearby trees. Mountain and woodland details are generated from local visual seeds; they never consume simulation randomness. Unexplored neighbors cannot affect a known mountain connection, foothill or river clearing.
+
+Movement uses each band's action budget. Ordinary adjacent land costs one action. Entering mountains or crossing a river costs two. Combining both obstacles still costs two, so mountain river crossings remain possible within one band's turn. Mountains remain passable in this initial implementation. A band with only one action left must wait until the following turn for a two-action crossing.
+
+The same cost applies to an encounter that includes an approach from an adjacent hex. An encounter on the current hex costs one action. Inspect the destination or encounter sheet before committing; successful movement and committed approaches spend the selected band's actions.
+
+Rivers are deterministic courses along the shared edges of cells. Their visible geography and their crossing rules refer to the same stored edges. Gentle curves pass through the true shared corners; the broader banks do not relocate the crossing. River generation is independent of the existing simulation random streams. Only edges with both adjoining cells explored are shown, including in Atlas mode, and route planning uses remembered terrain. Autoplay and return-to-leader paths account for the increased costs.
+
+Opportunity beacons use raised badges and ground light. There is at most one opportunity marker on an unoccupied hex, with priority given to salt, then food, then an exploration frontier. Hexes occupied by living bands or animal groups suppress these markers so their unit symbols stay readable. The underlying resources remain available through place inspection and the economy ledger.
+
+Hovering the raised badge highlights both it and its hex immediately. Its note explicitly names **Exploration opportunity**, **Food opportunity** or **Salt source**, explains its benefit and gives the selected band's current movement cost or reason it cannot move. These are map opportunities, not adviser recommendations. The top key now says **Explore**. Left-clicking the badge opens its actual hex record; right-clicking issues a normal legal move, including when the raised icon lies outside the hex's ground polygon.
+
+Food candidates must provide at least twice the selected band's current upkeep in one gathering action; the map shows up to four of the strongest visible candidates. Up to four nearby frontiers identify known land bordering unexplored cells, without reading that hidden terrain. Up to six nearby known salt sources can be marked. The map's opportunity key explains the highlights and provides a visual toggle; turning off the glows leaves simple salt source icons available. Glows and source notes remain separate from unit selection targets. Atlas inspection does not discover resources or unlock unexplored inhabitants' records.
+
+V8 records the initial terrain rule as `TerrainTravel` or `LegacyTravel`; older saved commands retain their original movement costs. The recorded `enable-terrain` command introduces the new costs only after the old story has replayed. The save format also preserves the independent salt, tribe and place-name rules.

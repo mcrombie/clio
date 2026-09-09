@@ -1,0 +1,7 @@
+{
+  "name": "Clio.Presentation",
+  "rootNamespace": "Clio.Presentation",
+  "references": ["Clio.Simulation", "Unity.RenderPipelines.Core.Runtime", "Unity.RenderPipelines.HighDefinition.Runtime"],
+  "autoReferenced": true,
+  "noEngineReferences": false
+}
