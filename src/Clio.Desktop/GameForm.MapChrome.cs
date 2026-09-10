@@ -226,7 +226,7 @@ namespace Clio.Desktop
             string[] descriptions = {
                 "Landforms, forests, waters and the paths between them.",
                 "Compare the gathering potential of different places.",
-                "The world's geographic regions, shown by color.",
+                "Connected geographic regions of many hexes. Borders and colors mark landscape regions, not polity ownership.",
                 "The languages carried by known peoples.",
                 "Peoples and their presence. Land has no owned borders."
             };

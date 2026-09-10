@@ -13,7 +13,7 @@ namespace Clio.Desktop
         private UnitKind encounterTargetKind;
         private bool encounterChoice;
         private readonly Timer unitAnimationTimer = new Timer { Interval = 40 };
-        private bool BlockingSheet { get { return noticeModal || encounterChoice || endingOpen || adviserOpen || gatheringChoice || openingAnnouncement || StoryModeBlocking; } }
+        private bool BlockingSheet { get { return BattleOverlayActive || noticeModal || encounterChoice || endingOpen || adviserOpen || gatheringChoice || openingAnnouncement || StoryModeBlocking; } }
         private bool UnitVisible(int cell) { return cell >= 0 && cell < game.World.Cells.Length && (!map.Fog || game.Explored.Contains(cell)); }
 
         private void SelectInspectorTab(int tab)
@@ -217,7 +217,7 @@ namespace Clio.Desktop
             if (animal != null && game.LivestockEnabled && !LivestockEconomy.CanDomesticate(game, animal))
                 friendship = "Deer cannot be domesticated. Hunt this wild group or leave it alone; peaceful approaches do not turn it into a domestic herd.";
             Typography.Draw(g, friendship, new RectangleF(418, 615, 764, 56), 17, Art.Muted, TypeRole.Body);
-            Typography.Line(g, outlook.RequiresMove ? outlook.ActionCost + (outlook.ActionCost == 1 ? " action includes" : " actions include") + " the approach and encounter." + (outlook.ActionCost > 1 ? " Mountains and river crossings take extra effort." : "") : "One action. Damage and trust stay with each moving unit.", new RectangleF(418, 681, 764, 29), 17, Art.Gold, TypeRole.Annotation, true);
+            Typography.Line(g, game.TacticalBattlesEnabled ? "Attack opens deployment on the region's actual hexes. Campaign cost: " + outlook.ActionCost + (outlook.ActionCost == 1 ? " action." : " actions.") : outlook.RequiresMove ? outlook.ActionCost + (outlook.ActionCost == 1 ? " action includes" : " actions include") + " the approach and encounter." + (outlook.ActionCost > 1 ? " Mountains and river crossings take extra effort." : "") : "One action. Damage and trust stay with each moving unit.", new RectangleF(418, 681, 764, 29), 17, Art.Gold, TypeRole.Annotation, true);
             if (animal != null && !outlook.CanBefriend) Typography.Line(g, Timeline.DisplayText(game, outlook.BefriendReason), new RectangleF(418, 712, 764, 24), 14, Art.Muted, TypeRole.Annotation, true);
             Art.Rule(g, 409, 746, 782);
             Button(g, "Leave alone  ·  Esc", 413, 763, 189, 42, CloseEncounterChoice, false, false);
@@ -229,7 +229,7 @@ namespace Clio.Desktop
                 CloseEncounterChoice(); Command(game.TribesEnabled ? "band:" + actorId + ":move:" + cell : "move:" + cell);
             }, false, false);
             if (animal != null) EncounterAction(g, "Befriend  [B]", new RectangleF(785, 763, 190, 42), outlook.CanBefriend, delegate { CommitEncounter(true); }, false);
-            EncounterAction(g, "Attack  [A]", new RectangleF(994, 763, 194, 42), outlook.CanAttack, delegate { CommitEncounter(false); }, true);
+            EncounterAction(g, game.TacticalBattlesEnabled ? "Enter battle  [A]" : "Attack  [A]", new RectangleF(994, 763, 194, 42), outlook.CanAttack, delegate { CommitEncounter(false); }, true);
         }
 
         private void DrawFightingBandDetails(Graphics g, Band band)

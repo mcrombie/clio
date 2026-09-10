@@ -66,7 +66,7 @@ namespace Clio.Desktop
             BackColor = Background; DoubleBuffered = true; KeyPreview = true; StartPosition = FormStartPosition.CenterScreen;
             game = new Game(startingSeed, startingStyle, startingAncestry, startingFour, startingName, startingCulture, startingPace, startingRules, startingPlaceNames, startingSalt, startingTribes, startingTerrainTravel, startingBandPersonalities, startingGatherings);
             journal = new StoryJournal(game);
-            EnableWoodForStory(); EnableLivestockForStory();
+            EnableWoodForStory(); EnableLivestockForStory(); EnableBattlesForStory();
             selected = game.Player.CellId; map.Focus(game.World.Cells[selected]); ArmMapCommandBand(game.Player.Id);
             ResetAdvisers();
             MouseLeave += delegate { hoverPoint = new PointF(-1, -1); HideMapHover(); map.OrderPreviewCell = -1; Invalidate(); };
@@ -82,7 +82,7 @@ namespace Clio.Desktop
             Resize += delegate { CancelWindowGesture(); Invalidate(); };
         }
         protected override void Dispose(bool disposing)
-        { if (disposing) { autoplay = false; autoplayTimer.Dispose(); settleCamera.Dispose(); noticeTimer.Dispose(); unitAnimationTimer.Dispose(); mapHoverTimer.Dispose(); map.Dispose(); } base.Dispose(disposing); }
+        { if (disposing) { autoplay = false; autoplayTimer.Dispose(); settleCamera.Dispose(); noticeTimer.Dispose(); unitAnimationTimer.Dispose(); mapHoverTimer.Dispose(); DisposeBattleView(); map.Dispose(); } base.Dispose(disposing); }
         private PointF Virtual(Point p)
         {
             RectangleF viewport = GameViewport;
@@ -114,6 +114,7 @@ namespace Clio.Desktop
         {
             g.SmoothingMode = SmoothingMode.AntiAlias; g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
             g.Clear(Background); buttons.Clear();
+            if (BattleOverlayActive) { DrawBattle(g); return; }
             using (LinearGradientBrush sky = new LinearGradientBrush(new RectangleF(0, 0, 1600, 95), Color.FromArgb(29, 39, 42), Background, 90))
                 g.FillRectangle(sky, 0, 0, 1600, 94);
             Art.Line(g, Border, 1, 18, 92, 1582, 92);
@@ -414,7 +415,7 @@ namespace Clio.Desktop
         }
         private void Command(string command)
         {
-            if (adviserOpen || gatheringChoice || openingAnnouncement || StoryModeBlocking) return;
+            if (BattleOverlayActive || adviserOpen || gatheringChoice || openingAnnouncement || StoryModeBlocking) return;
             if (!command.StartsWith("enable-", StringComparison.Ordinal) && !RequireManualOrders()) return;
             ClearMapTransient();
             StopAutoplay(null);
@@ -426,8 +427,7 @@ namespace Clio.Desktop
             status = Execute(game, command); commands.Add(command); chronicleOffset = 0;
             if (command == "enable-encounters") map.InvalidateTerrain();
             SynchronizeUnitSelection();
-            PresentNotices(journal.Record(game, before, command, status), false);
-            ReportEndingIfNeeded(); RefreshAdvisers(); Invalidate();
+            PresentBattleOrNotices(journal.Record(game, before, command, status), false);
         }
         private void SetAutoplaySpeed(int speed)
         {
@@ -458,7 +458,9 @@ namespace Clio.Desktop
         }
         private void AutoplayStep()
         {
-            if (!autoplay || IsDisposed || dragging || map.IsNavigating || BlockingSheet) return;
+            if (!autoplay || IsDisposed || dragging || map.IsNavigating) return;
+            if (BattleOverlayActive) { AutoplayBattleStep(); return; }
+            if (BlockingSheet) return;
             if (game.IsOver) { StopAutoplay("Autoplay has ended with this band's story. Its chronicle remains."); return; }
             if (commands.Count >= MaximumCommands) { StopAutoplay("Autoplay paused: the story record is full. You can save the complete chronicle."); return; }
             try
@@ -475,11 +477,9 @@ namespace Clio.Desktop
                 string result = Execute(game, decision.Command);
                 commands.Add(decision.Command);
                 SynchronizeUnitSelection();
-                PresentNotices(journal.Record(game, before, decision.Command, result), true);
-                ReportEndingIfNeeded();
-                RefreshAdvisers();
+                PresentBattleOrNotices(journal.Record(game, before, decision.Command, result), true);
                 if (chronicleOffset > 0) chronicleOffset = Math.Max(0, chronicleOffset + VisibleChronicle().Length - entries);
-                if (followAutoplay && !game.IsOver)
+                if (followAutoplay && !game.IsOver && !BattleOverlayActive)
                 {
                     Band followed = CurrentOrderBand;
                     bool refocus = followedActor != followed.Id || cell != followed.CellId || selected != followed.CellId;
@@ -488,14 +488,16 @@ namespace Clio.Desktop
                     if (refocus) map.Focus(game.World.Cells[selected]);
                 }
                 status = (semiautomatic ? "Semiautomatic" : "Autoplay " + AutoplaySpeeds[autoplaySpeed]) + "  /  " + decision.Reason + "  " + result;
-                if (game.IsOver) StopAutoplay("Autoplay has ended with this band's story. Its chronicle remains.");
-                else if (game.Turn == turn && AvailableOrderActions == actions) StopAutoplay("Autoplay paused: " + result + " You can take the next action.");
+                if (!BattleOverlayActive && game.IsOver) StopAutoplay("Autoplay has ended with this band's story. Its chronicle remains.");
+                else if (!BattleOverlayActive && game.Turn == turn && AvailableOrderActions == actions) StopAutoplay("Autoplay paused: " + result + " You can take the next action.");
                 else Invalidate();
             }
             catch (Exception error) { StopAutoplay("Autoplay paused: " + error.Message); }
         }
         internal static string Execute(Game target, string command)
         {
+            if (command == "enable-tactical-battles") return target.EnableTacticalBattles();
+            if (command.StartsWith("battle-", StringComparison.Ordinal)) return target.ExecuteBattleCommand(command);
             int bandId; string order;
             if (TryBandCommand(command, out bandId, out order))
             {
@@ -526,6 +528,8 @@ namespace Clio.Desktop
         }
         private void OnDown(object sender, MouseEventArgs e)
         {
+            if (BattleOverlayActive)
+            { if (GameViewport.Contains(e.Location)) HandleBattlePointerDown(Virtual(e.Location), e.Button); return; }
             if (e.Button == MouseButtons.Right) { OnRightDown(e); return; }
             if (e.Button != MouseButtons.Left || !GameViewport.Contains(e.Location)) return;
             PointF p = Virtual(e.Location);
@@ -539,6 +543,7 @@ namespace Clio.Desktop
         private void OnMove(object sender, MouseEventArgs e)
         {
             PointF p = Virtual(e.Location);
+            if (BattleOverlayActive) { hoverPoint = p; UpdateBattleHover(p); return; }
             int oldHover = buttons.FindIndex(b => b.Bounds.Contains(hoverPoint)), newHover = buttons.FindIndex(b => b.Bounds.Contains(p));
             hoverPoint = p; Cursor = newHover >= 0 ? Cursors.Hand : page == 0 && map.Bounds.Contains(p) ? Cursors.SizeAll : Cursors.Default;
             if (oldHover != newHover) Invalidate();
@@ -556,6 +561,7 @@ namespace Clio.Desktop
         }
         private void OnUp(object sender, MouseEventArgs e)
         {
+            if (BattleOverlayActive) { dragging = false; Capture = false; return; }
             if (e.Button != MouseButtons.Left) return;
             if (!dragging) return; dragging = false; Capture = false; map.IsNavigating = false;
             if (!moved && !BlockingSheet && GameViewport.Contains(e.Location))
@@ -585,6 +591,7 @@ namespace Clio.Desktop
         private void OnKey(object sender, KeyEventArgs e)
         {
             if (IsFullscreenShortcut(e.KeyData)) { ToggleFullscreen(); e.Handled = true; e.SuppressKeyPress = true; return; }
+            if (BattleOverlayActive) { HandleBattleKey(e); e.Handled = true; e.SuppressKeyPress = true; return; }
             if (StoryModeBlocking)
             {
                 if (e.KeyCode == Keys.Escape || e.KeyCode == Keys.P) PauseStoryDecision();
@@ -638,7 +645,8 @@ namespace Clio.Desktop
         {
             if (commands.Count > MaximumCommands) throw new InvalidDataException("This prototype supports saving up to 20,000 commands per story.");
             // Initial rules and logged upgrades preserve the outcomes of earlier saves.
-            bool livestock = game.LivestockEnabled || commands.Contains("enable-livestock");
+            bool battles = game.TacticalBattlesEnabled || commands.Contains("enable-tactical-battles");
+            bool livestock = battles || game.LivestockEnabled || commands.Contains("enable-livestock");
             bool wood = livestock || game.WoodEnabled || commands.Contains("enable-wood");
             bool decisionMetadata = HasStoryModeSave || wood;
             bool historicTime = startingPace != HistoryPace.LegacySeasons;
@@ -649,7 +657,7 @@ namespace Clio.Desktop
             bool salt = tribes || startingSalt || commands.Contains("enable-salt");
             bool placeNames = salt || startingPlaceNames || commands.Contains("enable-place-names");
             bool units = placeNames || startingRules == SimulationRules.MobileUnits || commands.Contains("enable-encounters");
-            List<string> lines = new List<string> { livestock ? "CLIO-STORY-13" : wood ? "CLIO-STORY-12" : decisionMetadata ? "CLIO-STORY-11" : gatherings ? "CLIO-STORY-10" : personalities ? "CLIO-STORY-9" : terrain ? "CLIO-STORY-8" : tribes ? "CLIO-STORY-7" : salt ? "CLIO-STORY-6" : placeNames ? "CLIO-STORY-5" : units ? "CLIO-STORY-4" : historicTime ? "CLIO-STORY-3" : startingCulture == CultureTemplateId.Generated ? "CLIO-STORY-1" : "CLIO-STORY-2", startingSeed.ToString(CultureInfo.InvariantCulture), startingStyle.ToString(), startingAncestry.ToString(), startingFour ? "4" : "1", Convert.ToBase64String(Encoding.UTF8.GetBytes(startingName)) };
+            List<string> lines = new List<string> { battles ? "CLIO-STORY-14" : livestock ? "CLIO-STORY-13" : wood ? "CLIO-STORY-12" : decisionMetadata ? "CLIO-STORY-11" : gatherings ? "CLIO-STORY-10" : personalities ? "CLIO-STORY-9" : terrain ? "CLIO-STORY-8" : tribes ? "CLIO-STORY-7" : salt ? "CLIO-STORY-6" : placeNames ? "CLIO-STORY-5" : units ? "CLIO-STORY-4" : historicTime ? "CLIO-STORY-3" : startingCulture == CultureTemplateId.Generated ? "CLIO-STORY-1" : "CLIO-STORY-2", startingSeed.ToString(CultureInfo.InvariantCulture), startingStyle.ToString(), startingAncestry.ToString(), startingFour ? "4" : "1", Convert.ToBase64String(Encoding.UTF8.GetBytes(startingName)) };
             if (units || historicTime || startingCulture != CultureTemplateId.Generated) lines.Add(startingCulture.ToString());
             if (units || historicTime) lines.Add(startingPace.ToString());
             if (units) lines.Add(startingRules.ToString());
@@ -709,7 +717,7 @@ namespace Clio.Desktop
                     if (!game.TerrainTravelEnabled && !game.IsOver && commands.Count < MaximumCommands) Command("enable-terrain");
                     if (!game.BandPersonalitiesEnabled && game.TribesEnabled && !game.IsOver && commands.Count < MaximumCommands) Command("enable-personalities");
                     if (!game.GatheringsEnabled && game.TribesEnabled && game.CulturalPlaceNames && !game.IsOver && commands.Count < MaximumCommands) Command("enable-gatherings");
-                    EnableWoodForStory(); EnableLivestockForStory();
+                    EnableWoodForStory(); EnableLivestockForStory(); EnableBattlesForStory();
                     status = "Story restored. " + Timeline.Label(game, game.Turn) + (semiautomatic ? ". Semiautomatic is paused; Continue story when ready." : ". Manual control.");
                 }
                 catch (Exception ex) { status = "Could not load story: " + ex.Message; }
@@ -721,8 +729,8 @@ namespace Clio.Desktop
             StopAutoplay(null);
             if (new FileInfo(path).Length > 2000000) throw new InvalidDataException("Story file is too large for this prototype.");
             string[] lines = File.ReadAllLines(path, Encoding.UTF8);
-            if (lines.Length < 6 || (lines[0] != "CLIO-STORY-1" && lines[0] != "CLIO-STORY-2" && lines[0] != "CLIO-STORY-3" && lines[0] != "CLIO-STORY-4" && lines[0] != "CLIO-STORY-5" && lines[0] != "CLIO-STORY-6" && lines[0] != "CLIO-STORY-7" && lines[0] != "CLIO-STORY-8" && lines[0] != "CLIO-STORY-9" && lines[0] != "CLIO-STORY-10" && lines[0] != "CLIO-STORY-11" && lines[0] != "CLIO-STORY-12" && lines[0] != "CLIO-STORY-13")) throw new InvalidDataException("Unsupported story version.");
-            int headerLines = lines[0] == "CLIO-STORY-13" || lines[0] == "CLIO-STORY-12" || lines[0] == "CLIO-STORY-11" ? 16 : lines[0] == "CLIO-STORY-10" ? 15 : lines[0] == "CLIO-STORY-9" ? 14 : lines[0] == "CLIO-STORY-8" ? 13 : lines[0] == "CLIO-STORY-7" ? 12 : lines[0] == "CLIO-STORY-6" ? 11 : lines[0] == "CLIO-STORY-5" ? 10 : lines[0] == "CLIO-STORY-4" ? 9 : lines[0] == "CLIO-STORY-3" ? 8 : lines[0] == "CLIO-STORY-2" ? 7 : 6;
+            if (lines.Length < 6 || (lines[0] != "CLIO-STORY-1" && lines[0] != "CLIO-STORY-2" && lines[0] != "CLIO-STORY-3" && lines[0] != "CLIO-STORY-4" && lines[0] != "CLIO-STORY-5" && lines[0] != "CLIO-STORY-6" && lines[0] != "CLIO-STORY-7" && lines[0] != "CLIO-STORY-8" && lines[0] != "CLIO-STORY-9" && lines[0] != "CLIO-STORY-10" && lines[0] != "CLIO-STORY-11" && lines[0] != "CLIO-STORY-12" && lines[0] != "CLIO-STORY-13" && lines[0] != "CLIO-STORY-14")) throw new InvalidDataException("Unsupported story version.");
+            int headerLines = lines[0] == "CLIO-STORY-14" || lines[0] == "CLIO-STORY-13" || lines[0] == "CLIO-STORY-12" || lines[0] == "CLIO-STORY-11" ? 16 : lines[0] == "CLIO-STORY-10" ? 15 : lines[0] == "CLIO-STORY-9" ? 14 : lines[0] == "CLIO-STORY-8" ? 13 : lines[0] == "CLIO-STORY-7" ? 12 : lines[0] == "CLIO-STORY-6" ? 11 : lines[0] == "CLIO-STORY-5" ? 10 : lines[0] == "CLIO-STORY-4" ? 9 : lines[0] == "CLIO-STORY-3" ? 8 : lines[0] == "CLIO-STORY-2" ? 7 : 6;
             if (lines.Length < headerLines) throw new InvalidDataException("The story header is incomplete.");
             StoryModeSaveState stagedMode = headerLines >= 16 ? ParseStoryModeSave(lines[15]) : new StoryModeSaveState();
             CultureTemplateId culture = CultureTemplateId.Generated;
@@ -796,7 +804,7 @@ namespace Clio.Desktop
                 journal = new StoryJournal(game); ClearNotices(false); inspectorPage = 0; inspectedBandId = 0; selectedAnimalId = -1; encounterChoice = false;
                 ClearReunionRoute(); ResetDiplomacy(); ResetGatheringUi(); ResetOpeningAnnouncement(); ResetEnding(); ResetStoryMode();
                 commands.Clear(); selected = game.Player.CellId; chronicleOffset = 0; languagePage = 0;
-                EnableWoodForStory(); EnableLivestockForStory();
+                EnableWoodForStory(); EnableLivestockForStory(); EnableBattlesForStory();
                 culturePage = 0; ResetEconomyPage(); ResetUnitsPage(); ClearMapTransient(); ArmMapCommandBand(game.Player.Id);
                 page = 0; map.Focus(game.World.Cells[selected]); map.Zoom = MapRenderer.RegionalZoom; map.Fog = true;
                 ResetAdvisers();

@@ -30,6 +30,8 @@ The top map toolbar uses symbols for map controls and useful-place highlights. H
 
 The selected-band panel starts closed. Open it from the band badge when you need that band's supplies, actions, personality or reunion information, then close it to restore space. The compact bottom action icons retain their explanatory tooltips and shortcuts.
 
+In `battles-32`, Regions view outlines connected geographic regions. Entering combat opens a separate tactical view of the actual landscape, with compact formation orders and terrain explanations on hover. Deployment, rounds and the result stay together on that screen; campaign panels return after the result is closed. See [Regions and tactical battles](BATTLES.md) for controls and campaign consequences.
+
 Selecting a hex or unit opens a compact record with immediate facts and useful actions. Expand it for the fuller place or unit account and ledger links. Opening a record spends no action. Inspecting a foreign group does not transfer your orders away from your controlled band.
 
 Automatic advice and routine event cues stay out of the way while a band panel, map record or crowded-hex roster is open. Their HUD counters and full records remain accessible; opening an inspector does not acknowledge advice.

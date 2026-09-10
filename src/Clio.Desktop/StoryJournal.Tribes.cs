@@ -26,10 +26,11 @@ namespace Clio.Desktop
         private List<StoryNotice> RecordTribal(Game game, JournalSnapshot before, string command, string result)
         {
             int first = Notices.Count;
-            bool ended = command == "end" && game.Turn > before.Turn;
+            bool ended = game.Turn > before.Turn && (command == "end" || game.TacticalBattlesEnabled);
             bool acted = before.Households.Any(b => game.ActionsFor(b.Id) < b.Actions);
             TribeEvent[] events = game.TribeEvents.Skip(before.TribeEventCount).Where(e => e.VisibleToPlayer).ToArray();
-            if (!ended && !acted && events.Length == 0 && game.GatheringEvents.Count == before.GatheringEventCount) return new List<StoryNotice>();
+            bool battleOutcomes = game.TacticalBattlesEnabled && game.Encounters.Records.Count > before.EncounterCount;
+            if (!ended && !acted && !battleOutcomes && events.Length == 0 && game.GatheringEvents.Count == before.GatheringEventCount) return new List<StoryNotice>();
             int actorId = game.Player.Id; string order = command;
             if (command.StartsWith("band:", StringComparison.Ordinal))
             {

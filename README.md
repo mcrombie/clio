@@ -4,7 +4,7 @@
 
 Clio is an experimental Windows desktop game written in C#. Explore a generated hex world, maintain food and salt supplies, gather wood for fires and camps, form new bands, and watch related peoples separate into independent polities. Languages, place names, encounters and decisions become part of the recorded story.
 
-The current source corresponds to **zoom-31**. It uses a native Windows Forms interface and an engine-independent simulation. A separate Unity presentation starter is included for future development.
+The current source corresponds to **battles-32**. It uses a native Windows Forms interface and an engine-independent simulation. A separate Unity presentation starter is included for future development.
 
 ## Play on Windows
 
@@ -19,9 +19,9 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\build.ps1
 & ".\Launch Clio.cmd"
 ```
 
-The executable and simulation library are written to `build/zoom-31/`. Keep them together. Build output and saved games are not included in the repository.
+The executable and simulation library are written to `build/battles-32/`. Keep them together. Build output and saved games are not included in the repository.
 
-Clio opens fullscreen. **F11** or **Alt+Enter** returns to a window. Save before closing an older build, then launch the updated version and load the story. Compatible earlier stories replay their original history before receiving recorded rules upgrades. Automation always loads stopped. Livestock stories use save format V13; older stories receive the new rules after replay, releasing any formerly domestic deer alive.
+Clio opens fullscreen. **F11** or **Alt+Enter** returns to a window. Save before closing an older build, then launch the updated version and load the story. Compatible earlier stories replay their original history before receiving recorded rules upgrades. Automation always loads stopped. Tactical battle stories use save format V14 and can restore an active battle. Older stories receive recorded rules upgrades after replay, including releasing any formerly domestic deer alive under the livestock rules.
 
 ## Three ways to play
 
@@ -44,6 +44,7 @@ The map starts with its landscape and compact controls. Scroll over the map to z
 - **Food and salt:** essential supplies held separately by each band. Economy explains consumption, gathering and shortages.
 - **Wood:** gathered with **W** or the wood-bundle icon. A supplied fire reduces food upkeep and protects against cold exposure; building a camp costs food and wood. Read the exact prototype rules in [Wood, fire and camps](docs/WOOD.md).
 - **Exploration and movement:** discover and name places in your people's language. Right-click adjacent known land to move the selected band. Mountains and river crossings cost more actions.
+- **Regions and battles:** geographic regions contain connected hexes. The Regions map view outlines them. Enter combat to deploy temporary formations on the real local terrain, then move, strike, defend or retreat through tactical rounds. Losses persist; interrupted campaign turns resume afterward. Automatic and Semiautomatic use the same battle rules. [Battle guide](docs/BATTLES.md).
 - **People and animals:** roaming groups can meet, fight or attempt peaceful contact. Cattle and goats provide milk proportional to herd size. Slaughter gives meat but removes animals and reduces later milk. Dogs improve hunting without producing food or boosting gathering; deer cannot be domesticated. Select an owned livestock herd for production details and its Slaughter action. [Livestock rules](docs/LIVESTOCK.md).
 - **Tribes and diplomacy:** daughter bands initially belong to the same tribe. Personality, travel and lost contact can lead to independent peoples. Known splinters unlock the first diplomatic relationships and gatherings.
 - **Advisers:** Economic, Military, Cultural and Social advisers explain developments from different perspectives. Frequency defaults to High; Moderate, Low and None are available.
@@ -62,11 +63,11 @@ Use **F** to gather food, **M** to move, **A** to review an attack, **B** to rev
 | `docs/` | Current mechanics, design notes and deferred development |
 | `unity/` | Unity presentation starter and import instructions |
 
-Start with [Gameplay modes](docs/STORY_MODE.md), [Tribes](docs/TRIBES.md), [Salt](docs/SALT.md), [Wood](docs/WOOD.md), [Livestock](docs/LIVESTOCK.md), [Languages](docs/LANGUAGES.md), or the [consolidated future development notes](docs/FUTURE_DEVELOPMENT.md). The broader [game design](docs/GAME_DESIGN.md) includes proposed features; it is not a list of implemented mechanics.
+Start with [Regions and battles](docs/BATTLES.md), [Gameplay modes](docs/STORY_MODE.md), [Tribes](docs/TRIBES.md), [Salt](docs/SALT.md), [Wood](docs/WOOD.md), [Livestock](docs/LIVESTOCK.md), [Languages](docs/LANGUAGES.md), or the [consolidated future development notes](docs/FUTURE_DEVELOPMENT.md). The broader [game design](docs/GAME_DESIGN.md) includes proposed features; it is not a list of implemented mechanics.
 
 ## Development status
 
-This is a working design prototype, with balance and interface behavior still changing. The latest interface iteration was compiled without new tests, rendering or playthrough verification, at the author's request. Existing checks remain available through `build.ps1 -Test`; optional native rendering is available through `build.ps1 -Render`. These switches are opt-in. See [Validation status](docs/VALIDATION.md).
+This is a working design prototype, with balance and interface behavior still changing. The latest battle iteration was compiled without new tests, rendering or playthrough verification, at the author's request. Existing checks remain available through `build.ps1 -Test`; optional native rendering is available through `build.ps1 -Render`. These switches are opt-in. See [Validation status](docs/VALIDATION.md).
 
 The Unity files are a starter, not the desktop game or a finished Unity release. Follow [Unity setup](unity/README.md) to explore that path. Full 3D production, expanded institutions, agriculture and later eras remain future work.
 

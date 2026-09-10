@@ -1,5 +1,7 @@
 # Moving groups and encounters
 
+**Current tactical battles:** `battles-32` adds a battlefield with deployment and combat rounds for attacks involving the player. See [Regions and tactical battles](BATTLES.md) for the current flow, turn interruption and saved-story behavior. The instant attack descriptions below also document the older encounter rules retained before `enable-tactical-battles` in a story's replay. Befriending and livestock actions retain their existing rules.
+
 The prototype treats every living animal group as a unit with a persistent ID, population, location, trust and condition. Independent bands move and act as turns close. New stories use these rules; an older story can adopt them with **Orders → Enable unit encounters** on the map.
 
 ## Choose the group, then the action

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -168,6 +168,8 @@ namespace Clio.Desktop
         internal static AutoplayDecision Choose(Game game, StoryDirective directive)
         {
             if (game == null) throw new ArgumentNullException("game");
+            if (game.Battle != null) return Decision(game.Battle.Phase == BattlePhase.Finished ? "battle-close" : "battle-auto",
+                "Resolve the active regional battle before the households resume their work.");
             if (game.IsOver) return null;
             Band band = game.ControlledBands.FirstOrDefault(b => game.ActionsFor(b.Id) > 0);
             if (band == null) return Decision("end", "The households have finished their work; the turn can close.");

@@ -20,6 +20,8 @@ namespace Clio.Simulation
         public static AutoplayDecision Choose(Game game)
         {
             if (game == null) throw new ArgumentNullException("game");
+            if (game.Battle != null) return Decide(game.Battle.Phase == BattlePhase.Finished ? "battle-close" : "battle-auto",
+                game.Battle.Phase == BattlePhase.Finished ? "The battle result is ready; continue the world." : "Resolve the regional battle with the same formation rules.");
             if (game.IsOver) return null;
             if (game.TribesEnabled) return ChooseTribe(game);
             if (game.Actions <= 0) return Decide("end", game.Pace == HistoryPace.LegacySeasons ?

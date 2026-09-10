@@ -126,6 +126,7 @@ namespace Clio.Desktop
         internal readonly bool SaltEnabled;
         internal readonly bool WoodEnabled;
         internal readonly bool LivestockEnabled;
+        internal readonly bool TacticalBattlesEnabled;
         internal readonly double Salt, SaltReserve;
         internal readonly int SaltShortageTurns;
         internal readonly ReadOnlyCollection<int> SaltSources;
@@ -155,6 +156,7 @@ namespace Clio.Desktop
             SaltEnabled = game.SaltEnabled; Salt = game.Player.Salt; SaltReserve = SaltEconomy.ReserveTurns(game.Player);
             WoodEnabled = game.WoodEnabled;
             LivestockEnabled = game.LivestockEnabled;
+            TacticalBattlesEnabled = game.TacticalBattlesEnabled;
             SaltShortageTurns = game.Player.SaltShortageTurns;
             SaltSources = new ReadOnlyCollection<int>(SaltEconomy.KnownSources(game).ToArray());
             TribesEnabled = game.TribesEnabled; TribeEventCount = game.TribeEvents.Count;
@@ -221,6 +223,7 @@ namespace Clio.Desktop
             if (command == null) throw new ArgumentNullException("command");
             if (game.Seed != before.Seed || game.Pace != before.Pace || game.Turn < before.Turn)
                 throw new ArgumentException("The journal snapshot belongs to a different story.", "before");
+            if (!before.TacticalBattlesEnabled && game.TacticalBattlesEnabled) return RecordTacticalBattlesEnabled(game);
             if (!before.LivestockEnabled && game.LivestockEnabled) return RecordLivestockEnabled(game, before);
             if (!before.WoodEnabled && game.WoodEnabled)
             {
@@ -246,12 +249,13 @@ namespace Clio.Desktop
             }
             if (game.TribesEnabled) return RecordTribal(game, before, command, result);
             int first = Notices.Count;
-            bool ended = command == "end" && game.Turn > before.Turn;
+            bool ended = game.Turn > before.Turn && (command == "end" || game.TacticalBattlesEnabled);
             bool spentAction = game.Turn == before.Turn && game.Actions < before.Actions;
             bool enabled = command == "enable-encounters" && before.Rules != game.Rules;
             bool named = !before.CulturalPlaces && game.CulturalPlaceNames;
             bool salted = !before.SaltEnabled && game.SaltEnabled;
-            if (!ended && !spentAction && !enabled && !named && !salted) return new List<StoryNotice>();
+            bool battleOutcomes = game.TacticalBattlesEnabled && game.Encounters.Records.Count > before.EncounterCount;
+            if (!ended && !spentAction && !enabled && !named && !salted && !battleOutcomes) return new List<StoryNotice>();
             Totals.Commands++;
             int populationDelta = game.Player.Population - before.Population;
             double foodDelta = game.Player.Food - before.Food;
@@ -390,7 +394,8 @@ namespace Clio.Desktop
         {
             JournalCombatReceipt receipt = new JournalCombatReceipt();
             HashSet<int> playerBands = new HashSet<int>(game.TribesEnabled ? before.Households.Select(b => b.Id) : new[] { game.Player.Id });
-            HashSet<int> owned = new HashSet<int>(before.Animals.Where(a => a.Domestic && a.OwnerId == game.Player.Id).Select(a => a.Id));
+            HashSet<int> owned = new HashSet<int>(before.Animals.Where(a => a.Domestic &&
+                (game.TacticalBattlesEnabled ? playerBands.Contains(a.OwnerId) : a.OwnerId == game.Player.Id)).Select(a => a.Id));
             HashSet<int> newFeuds = new HashSet<int>();
             foreach (EncounterRecord record in game.Encounters.Records.Skip(before.EncounterCount))
             {
@@ -454,6 +459,12 @@ namespace Clio.Desktop
                                 "Inspect known bands and consider their strength before approaching hostile ground.", false, "An attack becomes a feud", known ? otherId : -1);
                         }
                     }
+                }
+                else if (record.Kind == EncounterKind.BattleSupport)
+                {
+                    // Supporting households commit their own real casualties.
+                    // Their receipt belongs to the primary battle, not another fight.
+                    RecordBattleSupport(record, owned);
                 }
                 else if (record.Kind == EncounterKind.Befriend)
                 {

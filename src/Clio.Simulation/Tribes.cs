@@ -109,7 +109,7 @@ namespace Clio.Simulation
         public bool CanMoveBand(int actorId, int target)
         {
             Band actor = Bands.Find(b => b.Id == actorId);
-            return actor != null && CanControlBand(actorId) && ActionsFor(actorId) > 0 && !IsOver && target >= 0 && target < World.Cells.Length &&
+            return !BattleLocked && actor != null && CanControlBand(actorId) && ActionsFor(actorId) > 0 && !IsOver && target >= 0 && target < World.Cells.Length &&
                 World.Cells[target].IsLand && World.Cells[actor.CellId].Neighbors.Contains(target) &&
                 (Rules == SimulationRules.Classic || Explored.Contains(target) && !EncounterRules.HostileAt(this, target, actorId)) &&
                 (!TerrainTravelEnabled || Explored.Contains(target) && TravelRules.MoveCost(this, actor, actor.CellId, target) <= ActionsFor(actorId) &&
@@ -117,6 +117,7 @@ namespace Clio.Simulation
         }
         public string IssueBandCommand(int actorId, string command)
         {
+            if (BattleLocked) return "Finish the regional battle before issuing world orders.";
             if (!TribesEnabled) return "Enable tribes before issuing orders to several bands.";
             if (!CanControlBand(actorId)) return "That living band does not belong to your tribe.";
             if (command != null && command.StartsWith("gather-", StringComparison.Ordinal)) return IssueGatheringBandCommand(actorId, command);

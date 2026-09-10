@@ -191,6 +191,7 @@ namespace Clio.Desktop
             }
             if (Layer != 0) DrawRivers(g, game);
             if (Grid) using (Pen grid = new Pen(Color.FromArgb(83, 233, 226, 187), .8f)) foreach (ProjectedCell p in Visible) if (Known(game, p.Cell.Id)) g.DrawPolygon(grid, p.Polygon);
+            if (Layer == 2) DrawRegionBorders(g, game);
             if (Fog) DrawMistBoundary(g, game); else DrawAtmosphere(g);
             using (LinearGradientBrush fade = new LinearGradientBrush(new RectangleF(Bounds.X, Bounds.Bottom - 104, Bounds.Width, 105), Color.Transparent, Color.FromArgb(194, 12, 24, 31), 90)) g.FillRectangle(fade, Bounds.X, Bounds.Bottom - 104, Bounds.Width, 104);
         }
@@ -332,6 +333,7 @@ namespace Clio.Desktop
         }
         private void DrawLabels(Graphics g, Game game)
         {
+            if (Layer == 2) { DrawRegionLabels(g, game); return; }
             if (Layer == 4 || !PlaceLabels) return;
             List<RectangleF> occupied = new List<RectangleF>();
             foreach (Tuple<RectangleF, int> target in animalTargets) { RectangleF box = target.Item1; box.Inflate(8, 8); occupied.Add(box); }

@@ -191,12 +191,12 @@ namespace Clio.Simulation
         }
         public bool Known(string id) { Milestone m = Knowledge.Find(k => k.Id == id); return m != null && m.Known; }
         public bool CanMove(int id)
-        { return !IsOver && ActionBand.Population > 0 && ActionPoints > 0 && id >= 0 && id < World.Cells.Length && World.Cells[id].IsLand && World.Cells[ActionBand.CellId].Neighbors.Contains(id) &&
+        { return !BattleLocked && !IsOver && ActionBand.Population > 0 && ActionPoints > 0 && id >= 0 && id < World.Cells.Length && World.Cells[id].IsLand && World.Cells[ActionBand.CellId].Neighbors.Contains(id) &&
             (Rules == SimulationRules.Classic || Explored.Contains(id) && !EncounterRules.HostileAt(this, id, ActionBand.Id)) &&
             (!TerrainTravelEnabled || Explored.Contains(id) && TravelRules.MoveCost(this, ActionBand, ActionBand.CellId, id) <= ActionPoints &&
                 (World.Cells[id].Terrain != Terrain.Ice || ActionBand.Food >= Upkeep(ActionBand) * 3)); }
         private bool CanAct(out string message)
-        { message = IsOver || ActionBand.Population <= 0 ? "This band's story has ended. Start a new world to play again." : ActionPoints <= 0 ? "The band has spent its effort. End the turn to continue." : ""; return message.Length == 0; }
+        { message = BattleLocked ? "Finish the regional battle before issuing world orders." : IsOver || ActionBand.Population <= 0 ? "This band's story has ended. Start a new world to play again." : ActionPoints <= 0 ? "The band has spent its effort. End the turn to continue." : ""; return message.Length == 0; }
         public string Move(int id)
         {
             string message; if (!CanAct(out message)) return message;

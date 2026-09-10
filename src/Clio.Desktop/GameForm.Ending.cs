@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -25,7 +25,7 @@ namespace Clio.Desktop
 
         private void ReportEndingIfNeeded()
         {
-            if (!game.IsOver || endingReported) return;
+            if (game.Battle != null || !game.IsOver || endingReported) return;
             endingReported = true; endingRecord = CaptureEnding(); ShowEnding();
         }
 

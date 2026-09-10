@@ -8,7 +8,7 @@ namespace Clio.Simulation
 {
     public enum SimulationRules { Classic, MobileUnits }
     public enum UnitKind { Band, Animal }
-    public enum EncounterKind { Enabled, Move, Attack, Befriend, Retreat, Recovery, Release, Slaughter }
+    public enum EncounterKind { Enabled, Move, Attack, Befriend, Retreat, Recovery, Release, Slaughter, BattleSupport }
 
     public sealed class UnitProfile
     {
@@ -205,6 +205,7 @@ namespace Clio.Simulation
         { return Validate(game, game.ActionBand.Id, kind, id, friendly); }
         internal static string Validate(Game game, int actorId, UnitKind kind, int id, bool friendly)
         {
+            if (game.BattleLocked) return "Finish the regional battle before another world encounter.";
             Band acting = game.Bands.Find(b => b.Id == actorId);
             if (acting == null || !game.CanControlBand(actorId)) return "Choose a living band within your people.";
             if (game.Rules != SimulationRules.MobileUnits) return "Enable moving encounters to use targeted actions.";
@@ -263,6 +264,7 @@ namespace Clio.Simulation
         {
             string error = EncounterRules.Validate(this, UnitKind.Animal, id, false); if (error.Length > 0) return error;
             Beast target = Beasts.Find(b => b.Id == id); ActionPoints -= TravelRules.EncounterCost(this, ActionBand, target.CellId);
+            if (TacticalBattlesEnabled) battleApproachCell = ActionBand.CellId;
             if (ActionBand.CellId != target.CellId) RelocateBand(ActionBand, target.CellId, true, EncounterKind.Move, false);
             Encounters.Write(UnitKind.Animal, id).LastEncounterTurn = Turn;
             string result = FightAnimal(ActionBand, target, false);
@@ -320,6 +322,7 @@ namespace Clio.Simulation
         {
             string error = EncounterRules.Validate(this, UnitKind.Band, id, false); if (error.Length > 0) return error;
             Band target = Bands.Find(b => b.Id == id); ActionPoints -= TravelRules.EncounterCost(this, ActionBand, target.CellId);
+            if (TacticalBattlesEnabled) battleApproachCell = ActionBand.CellId;
             if (ActionBand.CellId != target.CellId) RelocateBand(ActionBand, target.CellId, true, EncounterKind.Move, false);
             Encounters.Write(UnitKind.Band, id).LastEncounterTurn = Turn;
             string result = FightBands(ActionBand, target);
@@ -396,6 +399,10 @@ namespace Clio.Simulation
         }
         private string FightAnimal(Band band, Beast animal, bool animalInitiated)
         {
+            if (TacticalBattlesEnabled && (BattlePlayerUnit(UnitKind.Band, band.Id) || BattlePlayerUnit(UnitKind.Animal, animal.Id)))
+                return BeginRegionalBattle(animalInitiated ? UnitKind.Animal : UnitKind.Band, animalInitiated ? animal.Id : band.Id,
+                    animalInitiated ? UnitKind.Band : UnitKind.Animal, animalInitiated ? band.Id : animal.Id);
+            if (TacticalBattlesEnabled) battleApproachCell = -1;
             UnitFrame actor = Frame(animalInitiated ? UnitKind.Animal : UnitKind.Band, animalInitiated ? animal.Id : band.Id);
             UnitFrame target = Frame(animalInitiated ? UnitKind.Band : UnitKind.Animal, animalInitiated ? band.Id : animal.Id);
             double food = Player.Food; int oldCount = animal.Count;
@@ -437,6 +444,9 @@ namespace Clio.Simulation
         }
         private string FightBands(Band attacker, Band defender)
         {
+            if (TacticalBattlesEnabled && (IsPlayerTribe(attacker.Id) || IsPlayerTribe(defender.Id)))
+                return BeginRegionalBattle(UnitKind.Band, attacker.Id, UnitKind.Band, defender.Id);
+            if (TacticalBattlesEnabled) battleApproachCell = -1;
             UnitFrame actor = Frame(UnitKind.Band, attacker.Id), target = Frame(UnitKind.Band, defender.Id); double food = Player.Food;
             Encounters.Wars.Add(EncounterState.Pair(attacker.Id, defender.Id));
             Encounters.Write(UnitKind.Band, attacker.Id).LastAttackTurn = Turn;
@@ -476,7 +486,9 @@ namespace Clio.Simulation
 
         private string EndTurnWithEncounters()
         {
+            if (BattleLocked) return "Finish the regional battle before the world continues.";
             if (IsOver) return "This band's story has ended. Its chronicle remains.";
+            if (TacticalBattlesEnabled) return BeginTacticalTurn();
             DiscoverAndShareBandPlaces();
             BeginTribeEconomy();
             if (BandPersonalitiesEnabled) ResolveVoluntaryBandMoves();
@@ -486,6 +498,11 @@ namespace Clio.Simulation
             foreach (Band band in Bands.Where(b => !IsPlayerTribe(b.Id) && b.Population > 0).OrderBy(b => b.Id).ToArray())
             { ActMobileBand(band); if (IsOver) break; }
             if (!IsOver) ActMobileAnimals();
+            return CompleteMobileTurn();
+        }
+
+        private string CompleteMobileTurn()
+        {
             Encounters.EconomyPlayerPopulation = Player.Population; Encounters.EconomyPlayerFood = Player.Food;
             if (!IsOver)
             {
@@ -561,9 +578,11 @@ namespace Clio.Simulation
                     EncounterRules.Animal(this, b).Strength < EncounterRules.Band(this, band).Strength * 0.7).OrderBy(b => b.Id).FirstOrDefault();
                 if (exposed != null && Next(ref ecologyRandom) < 0.22)
                 {
+                    if (TacticalBattlesEnabled) battleApproachCell = band.CellId;
                     if (band.CellId != exposed.CellId) RelocateBand(band, exposed.CellId, true, EncounterKind.Move, false);
                     FightAnimal(band, exposed, false); return;
                 }
+                if (TacticalBattlesEnabled) battleApproachCell = band.CellId;
                 if (band.CellId != enemy.CellId) RelocateBand(band, enemy.CellId, true, EncounterKind.Move, false);
                 FightBands(band, enemy); return;
             }
@@ -583,6 +602,11 @@ namespace Clio.Simulation
         {
             foreach (Beast animal in Beasts.Where(b => b.Count > 0 && !b.Domestic).OrderBy(b => b.Id).ToArray())
             {
+                if (TacticalBattlesEnabled && battleTurnPending)
+                {
+                    if (animal.Id <= tacticalTurnAnimalCursor || !tacticalTurnAnimalIds.Contains(animal.Id)) continue;
+                    tacticalTurnAnimalCursor = animal.Id;
+                }
                 UnitProfile profile = EncounterRules.Animal(this, animal);
                 Band near = Bands.Where(b => b.Population > 0 && (b.CellId == animal.CellId || World.Cells[animal.CellId].Neighbors.Contains(b.CellId)))
                     .OrderBy(b => b.CellId == animal.CellId ? 0 : 1).ThenBy(b => b.Population).ThenBy(b => b.Id).FirstOrDefault();
@@ -592,8 +616,9 @@ namespace Clio.Simulation
                 if (near != null && profile.Hostile && (state == null || state.LastAttackTurn != Turn) &&
                     Next(ref ecologyRandom) < (animal.Kind == BeastKind.Dragon ? 0.18 : 0.16))
                 {
+                    if (TacticalBattlesEnabled) battleApproachCell = animal.CellId;
                     if (animal.CellId != near.CellId) RelocateAnimal(animal, near.CellId, EncounterKind.Move);
-                    FightAnimal(near, animal, true); if (IsOver) break; continue;
+                    FightAnimal(near, animal, true); if (BattleLocked) return; if (IsOver) break; continue;
                 }
                 double mobility = animal.Kind == BeastKind.Deer ? 0.85 : animal.Kind == BeastKind.Aurochs ? 0.65 : animal.Kind == BeastKind.Wolves ? 0.52 : animal.Kind == BeastKind.Mammoths ? 0.38 : 0.20;
                 if (Next(ref ecologyRandom) < mobility)

@@ -213,6 +213,7 @@ namespace Clio.Simulation
         }
         public string InviteGathering(int hostBandId, int guestBandId, int siteCellId)
         {
+            if (BattleLocked) return "Finish the regional battle before arranging a gathering.";
             GatheringInvitation preview = PreviewGathering(hostBandId, guestBandId, siteCellId);
             if (!preview.CanInvite) return preview.Reason;
             Band host = Bands.Find(b => b.Id == hostBandId), guest = Bands.Find(b => b.Id == guestBandId);
@@ -237,6 +238,7 @@ namespace Clio.Simulation
         }
         private string GatheringAtMeeting(int hostId, GatheringState state)
         {
+            if (BattleLocked) return "Finish the regional battle before giving gathering orders.";
             if (!GatheringsEnabled || IsOver || state == null || state.HostBandId != hostId || !CanControlBand(hostId)) return "Choose a current gathering hosted by this living controlled band.";
             Band host = Bands.Find(b => b.Id == hostId), guest = Bands.Find(b => b.Id == state.GuestBandId);
             if (guest == null || guest.Population <= 0 || CanControlBand(guest.Id) || TribeOf(guest.Id) != state.GuestTribeId || EncounterRules.BandsHostile(this, host.Id, guest.Id)) return "This gathering's independent peaceful guest is no longer available.";
