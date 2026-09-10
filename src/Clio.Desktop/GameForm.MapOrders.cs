@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
@@ -127,32 +127,23 @@ namespace Clio.Desktop
         }
         private void DrawCommandedBand(Graphics g)
         {
-            RectangleF box = new RectangleF(495, 866, 464, 48);
+            RectangleF box = new RectangleF(495, 868, 328, 43);
             if (HasCommandBand)
             {
                 Band actor = CurrentOrderBand;
-                IdentityArt.DrawEmblem(g, game.TribeOf(actor.Id), new RectangleF(box.X + 4, 873, 31, 31), false);
-                Typography.Line(g, actor.Name, new RectangleF(box.X + 47, 864, 334, 27), 22, Art.Ink, TypeRole.Heading, true);
-                Typography.Line(g, game.ActionsFor(actor.Id) > 0 ? "Right-click adjacent land to move" : "No actions \u00b7 Select another band or end turn", new RectangleF(box.X + 49, 891, 400, 20), 13, Art.Muted, TypeRole.Annotation, true);
+                IdentityArt.DrawEmblem(g, game.TribeOf(actor.Id), new RectangleF(500, 876, 26, 26), false);
+                Typography.Line(g, actor.Name, new RectangleF(538, 872, 227, 35), 22, Art.Ink, TypeRole.Heading, true);
                 for (int i = 0; i < 2; i++)
                 {
-                    float x = box.X + 417 + i * 17;
+                    float x = 788 + i * 17;
                     using (Brush fill = new SolidBrush(i < game.ActionsFor(actor.Id) ? Art.Gold : Border))
-                        g.FillPolygon(fill, new[] { new PointF(x, 872), new PointF(x + 4, 877), new PointF(x, 882), new PointF(x - 4, 877) });
+                        g.FillPolygon(fill, new[] { new PointF(x, 883), new PointF(x + 4, 889), new PointF(x, 895), new PointF(x - 4, 889) });
                 }
             }
-            else
-            {
-                Typography.Line(g, game.IsOver ? "Your people's history remains" : "Select your band to give orders", new RectangleF(box.X + 9, 868, 442, 25), 19, Art.Muted, TypeRole.Heading, true);
-                Typography.Line(g, game.IsOver ? "Begin a new story to play again" : "Home finds your people", new RectangleF(box.X + 11, 893, 440, 20), 13, Art.Muted, TypeRole.Annotation);
-            }
-            buttons.Add(new UiButton(box, delegate
-            {
-                Band actor = CurrentOrderBand;
-                if (!game.CanControlBand(actor.Id)) return;
-                selectedAnimalId = -1; selected = actor.CellId; inspectedBandId = actor.Id; inspectorPage = 1;
-                map.Focus(game.World.Cells[selected]); ShowMapSelection();
-            }) { Tip = HasCommandBand ? UnitsActionCount(CurrentOrderBand.Id) + (game.ActionsFor(CurrentOrderBand.Id) == 1 ? " remains" : " remain") + " for this band. Right-click orders guide it; its own companions travel with it." : "Select a tribal banner or click here to find your leading band. Wildlife and independent peoples make their own choices." });
+            else Typography.Line(g, "Select a band", new RectangleF(506, 871, 295, 35), 21, Art.Muted, TypeRole.Heading, true);
+            buttons.Add(new UiButton(box, ToggleBandDetails) { Tip = "Selected band / " + CurrentOrderBand.Name + "\n" + CurrentOrderActions + " actions remain (gold diamonds). Click for supplies, personality, Hold and reunion details. Right-click adjacent land to move." });
+            MapIconButton(g, "branch", new RectangleF(841, 868, 43, 43), NextReadyBand, false, false, "Next ready band [N]\nSelect a household with actions remaining.");
+            MapIconButton(g, "locate", new RectangleF(897, 868, 43, 43), FocusCommandBandQuietly, false, false, "Find selected band\nCenter the map without opening another panel.");
         }
     }
 }

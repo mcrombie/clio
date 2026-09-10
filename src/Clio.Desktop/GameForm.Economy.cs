@@ -72,40 +72,7 @@ namespace Clio.Desktop
         { EconomyRow(g, x, y, width, label, (signed && value > 0 ? "+" : "") + value.ToString("0.0"), value > 0 && signed ? LedgerGreen : Art.Ink); }
 
         private void DrawEconomicOverview(Graphics g)
-        {
-            Band own = CurrentOrderBand; EconomyForecast forecast = BandEconomy.Forecast(game, own);
-            DomesticEconomy domestic = BandEconomy.DomesticEffects(game, own);
-            LedgerMetric(g, 42, "Living people", own.Population.ToString("N0"), "In the selected household", Art.Ink);
-            LedgerMetric(g, 348, "Food reserves", own.Food.ToString("N1"), "Food held by the selected band", Art.Gold);
-            LedgerMetric(g, 654, "Food security", EconomySecurity(), "People's needs and animal care", Art.Gold);
-            LedgerMetric(g, 960, "Companions", EconomyCompanions().Sum(b => b.Count).ToString("N0"), EconomyCompanions().Length + " living domestic lineages", LedgerGreen);
-            LedgerMetric(g, 1266, "Known households", EconomyKnownPartners().Length.ToString("N0"), "Other living bands in explored land", Art.Ink);
-
-            EconomyPanel(g, 42, 492, "I  /  The next turn");
-            Typography.Line(g, forecast.NetFood.ToString("+0.0;-0.0;0.0"), new RectangleF(60, 458, 453, 60), 44, forecast.NetFood >= 0 ? LedgerGreen : Art.Gold, TypeRole.Number, true);
-            Typography.Line(g, "Projected change in food reserves", new RectangleF(63, 518, 448, 29), 18, Art.Muted, TypeRole.Annotation);
-            EconomyAmount(g, 63, 568, 448, "Food after upkeep", forecast.EndingFood, false);
-            EconomyRow(g, 63, 603, 448, "Projected upkeep losses", (forecast.HungerLosses + forecast.ExposureLosses + forecast.SaltLosses).ToString("N0"), Art.Ink);
-            Typography.Draw(g, EconomyForecastNote(), new RectangleF(63, 649, 448, 61), 17, Art.Muted, TypeRole.Annotation);
-            Button(g, "Read the accounts", 63, 726, 448, 32, delegate { OpenEconomy(4); }, false, false);
-
-            EconomyPanel(g, 550, 492, "II  /  How the household is fed");
-            EconomyAmount(g, 571, 464, 449, "Food gathered per action", game.ForageYield(own.CellId, own), true);
-            EconomyAmount(g, 571, 504, 449, "Hearth production, per turn", EconomyActive ? forecast.CampFood : 0, true);
-            EconomyAmount(g, 571, 544, 449, game.LivestockEnabled ? "Milk from livestock, per turn" : "Cattle produce, per turn", EconomyActive ? domestic.CattleFood : 0, true);
-            Art.Rule(g, 571, 589, 448);
-            Typography.Draw(g, own.Settled ? "Your hearth adds production at the end of each turn. Gathering still uses an action and depletes the ground." : "Your people are travelling. An established hearth can add production when the turn ends.", new RectangleF(571, 611, 448, 86), 19, Art.Ink, TypeRole.Annotation);
-            Button(g, "Food and salt", 571, 726, 219, 32, delegate { economyResourcePage = 0; OpenEconomy(2); }, false, false);
-            Button(g, "Wood and fire", 798, 726, 221, 32, OpenWoodEconomy, false, false);
-
-            EconomyPanel(g, 1058, 500, "III  /  The living record");
-            EconomyRow(g, 1079, 464, 458, "Recorded births", journal.Totals.Births.ToString("N0"), LedgerGreen);
-            EconomyRow(g, 1079, 504, 458, "Recorded deaths", journal.Totals.Deaths.ToString("N0"), Art.Ink);
-            EconomyRow(g, 1079, 544, 458, game.TribesEnabled ? "People departing the tribe" : "People founding daughter bands", journal.Totals.PopulationDeparted.ToString("N0"), Art.Ink);
-            Art.Rule(g, 1079, 589, 458);
-            Typography.Draw(g, game.TribesEnabled ? "The living record follows your whole tribe. The forecasts and resources beside it describe the selected household." : "These accounts follow your household. Independent peoples keep their own lives, provisions and choices.", new RectangleF(1079, 611, 458, 86), 20, Art.Ink, TypeRole.Annotation);
-            Button(g, "Follow the population", 1079, 726, 458, 32, delegate { OpenEconomy(1); }, false, false);
-        }
+        { DrawEconomySummary(g); }
 
         private void DrawEconomicDemographics(Graphics g)
         {

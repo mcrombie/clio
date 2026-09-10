@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
@@ -40,7 +40,9 @@ namespace Clio.Desktop
             if (notices.Count == 0) return;
             // Observers can keep the story flowing. Every event remains in the archive.
             StoryNotice[] major = notices.Where(n => n.Important).ToArray();
-            if (major.Length > 0 && (!fromAutoplay || pauseOnEvents))
+            // Large readings are opt-in. Manual play gets the same compact cue;
+            // an explicit pause-on-events setting still opens major accounts.
+            if (major.Length > 0 && fromAutoplay && pauseOnEvents)
             {
                 bool resume = fromAutoplay && autoplay;
                 foreach (StoryNotice notice in major) pendingNotices.Enqueue(notice);
@@ -128,28 +130,11 @@ namespace Clio.Desktop
 
         private void DrawNotice(Graphics g)
         {
-            if (activeNotice == null || !noticeModal && (adviserOpen || AdviserToastVisible)) return;
+            if (activeNotice == null || !noticeModal && !RoutineNoticeVisible) return;
             StoryNotice notice = activeNotice;
             if (!noticeModal)
             {
-                RectangleF toast = MapToastBounds;
-                buttons.RemoveAll(b => b.Bounds.IntersectsWith(toast));
-                Art.Panel(g, toast, Color.FromArgb(24, 36, 40), true);
-                if (page == 0)
-                {
-                    Art.Icon(g, "history", 50, 785, 23, Art.Gold);
-                    Typography.Label(g, Timeline.Label(game, notice.Turn) + " / " + notice.Kind, new RectangleF(85, 773, 380, 18), 10, Art.Gold, .5f);
-                    Typography.Line(g, Timeline.DisplayText(game, notice.Title), new RectangleF(83, 789, 382, 33), 22, Art.Ink, TypeRole.Heading, true);
-                    Button(g, "Read", 479, 781, 91, 34, delegate { OpenNotice(notice, autoplay); }, false, false);
-                    buttons[buttons.Count - 1].Tip = Timeline.DisplayText(game, notice.Impact);
-                    Button(g, "Close", 580, 781, 62, 34, delegate { DismissNotice(false); }, false, false);
-                    return;
-                }
-                Typography.Label(g, Timeline.Label(game, notice.Turn) + "  /  " + notice.Kind, new RectangleF(54, 601, 450, 22), 11, Art.Gold, .6f);
-                Typography.Line(g, Timeline.DisplayText(game, notice.Title), new RectangleF(52, 624, 475, 34), 27, Art.Ink, TypeRole.Heading, true);
-                Typography.Draw(g, Timeline.DisplayText(game, notice.Impact), new RectangleF(55, 659, 466, 36), 14, Art.Muted, TypeRole.Body);
-                Button(g, "Read event", 54, 699, 118, 25, delegate { OpenNotice(notice, autoplay); }, false, false);
-                Button(g, "Dismiss", 429, 699, 99, 25, delegate { DismissNotice(false); }, false, false);
+                DrawRoutineNoticeCue(g, notice);
                 return;
             }
 

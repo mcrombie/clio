@@ -16,13 +16,13 @@ namespace Clio.Desktop
         private void ShowMapSelection()
         {
             SyncMapCommandSelection();
-            CloseMapMenus(); HideMapHover(); mapSelectionOpen = true;
+            CloseMapMenus(); HideMapHover(); bandDetailsOpen = false; mapCardExpanded = false; mapSelectionOpen = true;
             buttons.Clear(); Invalidate();
         }
         private void CloseMapSelection()
-        { mapSelectionOpen = false; ClearUnitStack(); HideMapHover(); buttons.Clear(); Invalidate(); }
+        { mapSelectionOpen = false; mapCardExpanded = false; ClearUnitStack(); HideMapHover(); buttons.Clear(); Invalidate(); }
         private void ClearMapTransient()
-        { mapSelectionOpen = false; ClearUnitStack(); CloseMapMenus(); HideMapHover(); map.OrderPreviewCell = -1; }
+        { mapSelectionOpen = false; mapCardExpanded = false; bandDetailsOpen = false; ClearUnitStack(); CloseMapMenus(); HideMapHover(); map.OrderPreviewCell = -1; }
         private void HideMapHover()
         {
             bool highlighted = map.HoverOpportunityCell >= 0;
@@ -31,11 +31,11 @@ namespace Clio.Desktop
             if (highlighted) Invalidate();
         }
         private RectangleF MapToastBounds
-        { get { return page == 0 ? new RectangleF(36, 766, 620, 64) : new RectangleF(35, 591, 514, 143); } }
+        { get { return NotificationCueBounds(58); } }
         private bool MapOverlayContains(PointF point)
         {
             return AdviserToastVisible && AdviserToastBounds.Contains(point) || BandPanelContains(point) || MapMenuContains(point) || mapSelectionOpen && MapSelectionBounds.Contains(point) ||
-                activeNotice != null && !noticeModal && MapToastBounds.Contains(point);
+                RoutineNoticeVisible && MapToastBounds.Contains(point);
         }
         // Overlay backgrounds consume presses too. Empty space on a card must never
         // select the terrain beneath it or begin a drag.
@@ -57,11 +57,12 @@ namespace Clio.Desktop
                 CloseMapMenus(); buttons.Clear(); Invalidate(); return true;
             }
             if (mapSelectionOpen && map.Bounds.Contains(point) && !buttons.Any(b => b.Bounds.Contains(point))) CloseMapSelection();
+            if (bandDetailsOpen && map.Bounds.Contains(point) && !buttons.Any(b => b.Bounds.Contains(point))) CloseBandDetails();
             return false;
         }
         private void UpdateMapHover(PointF point)
         {
-            if (page != 0 || BlockingSheet || dragging || map.IsNavigating)
+            if (BlockingSheet || page == 0 && (dragging || map.IsNavigating))
             { HideMapHover(); return; }
             int kind = -1, id = -1; string tip = "";
             UiButton control = buttons.LastOrDefault(b => b.Bounds.Contains(point));
@@ -69,7 +70,7 @@ namespace Clio.Desktop
             {
                 if (!String.IsNullOrEmpty(control.Tip)) { kind = 3; id = buttons.IndexOf(control); tip = control.Tip; }
             }
-            else if (!MapOverlayContains(point) && map.Bounds.Contains(point))
+            else if (page == 0 && !MapOverlayContains(point) && map.Bounds.Contains(point))
             {
                 int stackCell = map.PickUnitStack(point.X, point.Y);
                 if (stackCell >= 0 && game.Explored.Contains(stackCell))
@@ -97,7 +98,7 @@ namespace Clio.Desktop
         private void RevealMapHover()
         {
             mapHoverTimer.Stop();
-            if (page != 0 || BlockingSheet || dragging || map.IsNavigating || hoverKind < 0) return;
+            if (BlockingSheet || page == 0 && (dragging || map.IsNavigating) || hoverKind < 0 || page != 0 && hoverKind != 3) return;
             if (hoverKind == 1 && !game.Bands.Any(b => b.Id == hoverId && b.Population > 0 && game.Explored.Contains(b.CellId)) ||
                 hoverKind == 2 && !game.Beasts.Any(b => b.Id == hoverId && b.Count > 0 && game.Explored.Contains(b.CellId)) ||
                 hoverKind >= MapRenderer.FoodOpportunity && !map.IsOpportunityVisible(game, hoverKind, hoverId))
@@ -106,7 +107,7 @@ namespace Clio.Desktop
         }
         private void DrawMapHoverOverlay(Graphics g)
         {
-            if (!mapHoverVisible || page != 0 || BlockingSheet || dragging || map.IsNavigating) return;
+            if (!mapHoverVisible || BlockingSheet || page == 0 && (dragging || map.IsNavigating) || page != 0 && hoverKind != 3) return;
             if (hoverKind != 3) { DrawMapHover(g, hoverKind, hoverId, mapHoverAnchor); return; }
             RectangleF box = MapTooltipBounds(g, hoverTip, mapHoverAnchor);
             Art.Panel(g, box, Color.FromArgb(28, 40, 43), false);
@@ -120,11 +121,11 @@ namespace Clio.Desktop
             // tips need more than the old three-line box, especially for learners.
             float height;
             using (StringFormat format = new StringFormat { Trimming = StringTrimming.EllipsisCharacter, FormatFlags = StringFormatFlags.LineLimit })
-                height = (float)Math.Ceiling(g.MeasureString(text ?? "", Typography.Font(TypeRole.Body, 16), new SizeF(278, 10000), format).Height) + 24;
-            height = Math.Max(92, Math.Min(260, height));
-            float x = Math.Max(24, Math.Min(1268, anchor.X + 18));
+                height = (float)Math.Ceiling(g.MeasureString(text ?? "", Typography.Font(TypeRole.Body, 16), new SizeF(350, 10000), format).Height) + 24;
+            height = Math.Max(76, Math.Min(420, height));
+            float x = Math.Max(24, Math.Min(1196, anchor.X + 18));
             float y = anchor.Y > 780 ? anchor.Y - height - 13 : anchor.Y + 25;
-            return new RectangleF(x, Math.Max(103, Math.Min(914 - height, y)), 308, height);
+            return new RectangleF(x, Math.Max(103, Math.Min(914 - height, y)), 380, height);
         }
     }
 }

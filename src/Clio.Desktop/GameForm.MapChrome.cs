@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Drawing;
 using Clio.Simulation;
 
@@ -17,7 +17,7 @@ namespace Clio.Desktop
                 if (page != 0) return RectangleF.Empty;
                 if (mapMenu == 1) return new RectangleF(32, 220, 460, 302);
                 if (mapMenu == 3) return new RectangleF(1094, game.Rules == SimulationRules.Classic ? 265 : 309, 474, game.Rules == SimulationRules.Classic ? 583 : 539);
-                if (mapMenu == 4) return new RectangleF(332, 220, 470, 438);
+                if (mapMenu == 4) return new RectangleF(124, 220, 470, 438);
                 return RectangleF.Empty;
             }
         }
@@ -28,9 +28,8 @@ namespace Clio.Desktop
             // Menu triggers belong to the open menu's interaction region. The
             // parent can dispatch their existing buttons in one click instead
             // of consuming the press only to dismiss the previous menu.
-            return MapMenuBounds.Contains(point) || new RectangleF(32, 174, 151, 34).Contains(point) ||
-                new RectangleF(1180, 868, 183, 43).Contains(point) ||
-                new RectangleF(332, 174, 407, 34).Contains(point);
+            return MapMenuBounds.Contains(point) || new RectangleF(32, 174, 258, 34).Contains(point) ||
+                new RectangleF(1220, 868, 44, 43).Contains(point);
         }
 
         private void CloseMapMenus()
@@ -83,66 +82,70 @@ namespace Clio.Desktop
 
         private void DrawMapToolbar(Graphics g)
         {
-            DrawFloatingMapPanel(g, new RectangleF(24, 166, 294, 50));
-            Button(g, mapMenu == 1 ? "Map views  \u2039" : "Map views  \u203a", 32, 174, 151, 34, delegate { ToggleMapMenu(1); }, mapMenu == 1, false);
-            string[] layers = { "Terrain", "Food", "Regions", "Speech", "Polities" };
-            MapTip("Choose a map layer, grid or visibility. Current view: " + layers[Math.Max(0, Math.Min(4, map.Layer))] + (map.Fog ? "; known land." : "; whole atlas."));
-            Button(g, "Find band", 193, 174, 117, 34, delegate
-            {
-                CloseMapMenus(); selectedAnimalId = -1; selected = CurrentOrderBand.CellId;
-                inspectedBandId = CurrentOrderBand.Id; inspectorPage = 1;
-                map.SelectedAnimalId = -1; map.SelectedBandId = CurrentOrderBand.Id;
-                map.Focus(game.World.Cells[selected]); ShowMapSelection(); Invalidate();
-            }, false, false);
-            MapTip("Return to your people and open their band details. Drag the map to roam; scroll to change scale.");
-            DrawLandscapeKey(g);
-            if (!map.Fog || map.Layer != 0)
-                Typography.Line(g, (map.Fog ? "Known land" : "Whole atlas") + "  /  " + layers[Math.Max(0, Math.Min(4, map.Layer))],
-                    new RectangleF(758, 176, 555, 30), 16, Art.Muted, TypeRole.Annotation, true);
+            // A small symbol key; the full legend is one click away.
+            DrawFloatingMapPanel(g, new RectangleF(24, 166, 274, 50));
+            MapIconButton(g, "globe", new RectangleF(32, 174, 36, 34), delegate { ToggleMapMenu(1); }, mapMenu == 1, false,
+                "Map views\nChoose terrain, food, regions, speech or polities; toggle the grid and known land.");
+            MapIconButton(g, "locate", new RectangleF(76, 174, 36, 34), FocusCommandBandQuietly, false, false,
+                "Find your band [Home]\nCenter the map on the selected band. Click its banner to inspect it.");
+            MapIconButton(g, "leaf", new RectangleF(120, 174, 36, 34), delegate { CloseMapMenus(); map.Layer = map.Layer == 1 ? 0 : 1; Invalidate(); }, map.Layer == 1, false,
+                "Find food\nToggle the food map. Bright leaf markers show strong gathering places; move there and Gather to collect food.");
+            MapIconButton(g, "salt", new RectangleF(164, 174, 36, 34), OpenSaltEconomy, false, false,
+                "Find salt\nCrystal markers locate salt. Open the list of known sources and your band's reserves.");
+            MapIconButton(g, "explore", new RectangleF(208, 174, 36, 34), delegate { CloseMapMenus(); map.Layer = 0; map.InterestHighlights = true; Invalidate(); }, false, false,
+                "Explore\nShow terrain and useful-place markers. Blue compasses stand beside unknown land; move to those hexes to discover more. The book opens the symbol guide.");
+            MapIconButton(g, "book", new RectangleF(252, 174, 36, 34), delegate { ToggleMapMenu(4); }, mapMenu == 4, false,
+                "Symbol guide\nLearn food, salt and exploration markers, and mountain and river movement costs.");
+            if (!map.Fog)
+                Typography.Line(g, "Atlas", new RectangleF(314, 177, 90, 28), 17, Art.Gold, TypeRole.Annotation, true);
+        }
+
+        private void FocusCommandBandQuietly()
+        {
+            ClearMapTransient(); page = 0;
+            Band actor = CurrentOrderBand;
+            if (game.CanControlBand(actor.Id)) ArmMapCommandBand(actor.Id);
+            selected = actor.CellId; map.Focus(game.World.Cells[selected]); buttons.Clear(); Invalidate();
         }
 
         private void DrawMapDock(Graphics g)
         {
-            DrawFloatingMapPanel(g, new RectangleF(977, 860, 607, 59));
+            DrawFloatingMapPanel(g, new RectangleF(16, 860, 1568, 59));
             if (game.IsOver)
             {
-                Art.Fill(g, Background, 16, 860, 960, 59);
                 Art.Icon(g, "history", 34, 875, 28, Art.Gold);
-                Typography.Line(g, "The hearth is silent. Its history remains.", new RectangleF(79, 868, 851, 43), 24, Art.Ink, TypeRole.Annotation, true);
+                Typography.Line(g, "Your history remains", new RectangleF(79, 868, 700, 43), 24, Art.Ink, TypeRole.Annotation, true);
                 Button(g, "Read history", 989, 868, 181, 43, ReadEndingHistory, false, false);
                 Button(g, "Final account", 1180, 868, 183, 43, ShowEnding, false, false);
                 Button(g, "New story", 1373, 868, 195, 43, NewStory, true, false);
                 return;
             }
             if (SemiautomaticMode) DrawSemiautomaticDock(g);
-            else
-            {
-                DrawFloatingMapPanel(g, new RectangleF(16, 860, 466, 59));
-                DrawFloatingMapPanel(g, new RectangleF(490, 860, 479, 59));
-                DrawMapActionIcons(g);
-                DrawCommandedBand(g);
-            }
+            else { DrawMapActionIcons(g); DrawCommandedBand(g); }
+            DrawCompactPlayControls(g);
+        }
 
-            Button(g, SemiautomaticMode ? "Semiautomatic \u00b7 Mode" : AutomaticMode ? "Automatic \u00b7 Mode" : "Manual \u00b7 Mode", 989, 868, 181, 43,
+        private void DrawCompactPlayControls(Graphics g)
+        {
+            Button(g, SemiautomaticMode ? "Semiautomatic" : AutomaticMode ? "Automatic" : "Manual", 1000, 868, 206, 43,
                 delegate { CloseMapMenus(); OpenPlayMode(); }, SemiautomaticMode || AutomaticMode, false);
-            MapTip("Manual: give each order. Semiautomatic: choose story decisions. Automatic: watch the computer run every band and advance turns.");
-            Button(g, mapMenu == 3 ? "Watch settings  \u2039" : "Watch settings  \u203a", 1180, 868, 183, 43, delegate { ToggleMapMenu(3); }, mapMenu == 3, false);
-            MapTip("Adviser frequency, autoplay speed, event pauses, and following your band's movement.");
+            MapTip("Gameplay mode\nManual: choose individual orders. Semiautomatic: choose story directions. Automatic: watch your people act. Click to change mode.");
+            MapIconButton(g, "settings", new RectangleF(1220, 868, 44, 43), delegate { if (page != 0) { ClearMapTransient(); page = 0; } ToggleMapMenu(3); }, mapMenu == 3, false,
+                "Watch settings\nAdviser frequency, autoplay speed, event pauses and camera following.");
             if (SemiautomaticMode)
             {
-                Button(g, autoplay ? "Pause story [P]" : "Continue story", 1373, 868, 195, 43, ContinueSemiautomatic, true, false);
-                MapTip(autoplay ? "Pause your bands' automatic actions. Your chosen direction remains in effect." :
-                    "Continue to the next decision. Your bands carry out your chosen direction automatically.");
+                Button(g, autoplay ? "Pause story [P]" : "Continue story", 1280, 868, 288, 43, ContinueSemiautomatic, true, false);
+                MapTip("Continue or pause your bands carrying out the chosen direction. New decisions appear when needed.");
             }
             else if (AutomaticMode)
             {
-                Button(g, "Take control [P]", 1373, 868, 195, 43, ToggleAutoplay, true, false);
-                MapTip("Stop Automatic and return to Manual. Your people and supplies stay the same.");
+                Button(g, "Take control [P]", 1280, 868, 288, 43, ToggleAutoplay, true, false);
+                MapTip("Stop Automatic and return to Manual.");
             }
             else
             {
-                DrawMapEndTurn(g, new RectangleF(1373, 868, 195, 43));
-                MapTip("Resolve upkeep, growth, movement and encounters, then begin the next turn.");
+                DrawMapEndTurn(g, new RectangleF(1280, 868, 288, 43));
+                MapTip("End turn [Space]\nResolve supplies, growth and encounters, then restore each band's actions.");
             }
         }
 
@@ -192,7 +195,8 @@ namespace Clio.Desktop
             using (Pen edge = new Pen(active || hover ? Art.Gold : Border, 1)) g.DrawRectangle(edge, bounds.X, bounds.Y, bounds.Width, bounds.Height);
             Color ink = disabled ? Color.FromArgb(108, 117, 112) : Art.Gold;
             RectangleF glyph = new RectangleF(bounds.X + (bounds.Width - 25) / 2, bounds.Y + (bounds.Height - 25) / 2, 25, 25);
-            if (icon == "salt") DrawSaltGlyph(g, glyph, ink);
+            if (icon == "explore") MapRenderer.DrawFrontierInterestIcon(g, glyph);
+            else if (icon == "salt") DrawSaltGlyph(g, glyph, ink);
             else if (icon == "wood") DrawWoodGlyph(g, glyph, ink);
             else Art.Icon(g, icon, glyph.X, glyph.Y, glyph.Width, ink);
             buttons.Add(new UiButton(bounds, delegate { if (disabled) { status = tip.Replace('\n', ' '); Invalidate(); } else click(); }) { Tip = tip });

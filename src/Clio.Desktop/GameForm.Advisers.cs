@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
@@ -56,10 +56,9 @@ namespace Clio.Desktop
             }
         }
         private bool AdviserToastVisible
-        { get { return !BlockingSheet && (page != 0 || mapMenu == 0) && !dragging && !map.IsNavigating && AdviserToastReport != null; } }
-        private bool CompactAdviserToast { get { return page == 0 && (mapSelectionOpen || unitStackOpen); } }
+        { get { return !BlockingSheet && !NotificationInspectorOpen && (page != 0 || mapMenu == 0) && !dragging && !map.IsNavigating && AdviserToastReport != null; } }
         private RectangleF AdviserToastBounds
-        { get { return CompactAdviserToast ? new RectangleF(36, 228, 500, 286) : new RectangleF(1194, 228, 368, 423); } }
+        { get { return NotificationCueBounds(132); } }
 
         private void AcknowledgeAdviser(string key)
         {
@@ -152,71 +151,28 @@ namespace Clio.Desktop
         private void DrawAdviserToast(Graphics g)
         {
             if (!AdviserToastVisible) return;
-            if (CompactAdviserToast) { DrawCompactAdviserToast(g); return; }
             Advisory report = AdviserToastReport;
-            RectangleF box = AdviserToastBounds; Color ink = AdviserInk(report);
-            buttons.RemoveAll(b => b.Bounds.IntersectsWith(box));
-            Art.Panel(g, box, Color.FromArgb(26, 37, 39), true);
-            Art.Line(g, ink, 2, box.X, box.Y + 16, box.X, box.Bottom - 16);
+            RectangleF box = AdviserToastBounds;
+            Color ink = AdviserInk(report);
             CounsellorId voice = CouncilDefaultVoice(report);
             CounsellorProfile profile = CouncilPerspectives.Profile(voice);
-            CouncilOpinion opinion = AdviserOpinion(report, voice);
-            AdviserPortraits.Draw(g, new RectangleF(box.X + 18, box.Y + 12, 100, 100), voice, ink);
-            Typography.Line(g, profile.Name, new RectangleF(box.X + 132, box.Y + 24, 175, 32), 22, ink, TypeRole.Heading, true);
-            Typography.Line(g, profile.Title, new RectangleF(box.X + 132, box.Y + 58, 211, 26), 16, Art.Muted, TypeRole.Annotation, true);
-            Typography.Label(g, AdviserContext(report), new RectangleF(box.X + 132, box.Y + 87, 211, 21), 11, ink, .35f);
-            Art.Rule(g, box.X + 20, box.Y + 117, box.Width - 40);
-            string title = report.Title;
-            int separator = title.LastIndexOf(':');
-            if (!report.IsGuidance && separator >= 0) { title = title.Substring(separator + 1).Trim(); if (title.Length > 0) title = Char.ToUpperInvariant(title[0]) + title.Substring(1); }
-            RectangleF titleBox = new RectangleF(box.X + 18, box.Y + 126, box.Width - 36, 72);
-            RectangleF bodyBox = new RectangleF(box.X + 21, box.Y + 222, box.Width - 42, 110);
-            Typography.Draw(g, title, titleBox, AdviserReadingSize(g, title, titleBox, 27, 20, TypeRole.Heading), Art.Ink, TypeRole.Heading);
-            Typography.Line(g, report.SubjectName, new RectangleF(box.X + 21, box.Y + 194, box.Width - 42, 27), 17, Art.Muted, TypeRole.Annotation, true);
-            string speech = "\u201c" + opinion.Speech + "\u201d";
-            Typography.Draw(g, speech, bodyBox, AdviserReadingSize(g, speech, bodyBox, 21, 18, TypeRole.Annotation), Art.Ink, TypeRole.Annotation);
             string key = report.Key;
             int occurrence = adviserOccurrences[key];
-            Button(g, "Tell me more", box.X + 20, box.Y + 346, 221, 36, delegate { OpenAdvisers(key); }, true, false);
-            MapTip("Hear all four voices, compare their arguments, and inspect the evidence. Opening the council pauses autoplay.");
-            int remaining = Math.Max(0, adviserReports.Count(AdviserUnread) - 1);
-            Typography.Line(g, remaining > 0 ? "+" + remaining + " waiting" : "", new RectangleF(box.X + 248, box.Y + 350, 101, 30), 15, Art.Muted, TypeRole.Annotation, true);
-            Button(g, "\u00d7", box.Right - 45, box.Y + 9, 33, 28, delegate { AcknowledgeDisplayedAdviser(report, occurrence); }, false, false);
-            MapTip("Acknowledge this concern. It stays in Advisers and returns if it becomes more urgent.");
-            Button(g, "Advice: " + adviserFrequency + "  /  Change", box.X + 20, box.Y + 391, box.Width - 40, 23, OpenAdviserFrequency, false, false);
-            MapTip("Choose High, Moderate, Low or None in the council. " + FrequencyDescription(adviserFrequency));
-        }
-
-        private void DrawCompactAdviserToast(Graphics g)
-        {
-            Advisory report = AdviserToastReport;
-            RectangleF box = AdviserToastBounds; Color ink = AdviserInk(report);
             buttons.RemoveAll(b => b.Bounds.IntersectsWith(box));
-            Art.Panel(g, box, Color.FromArgb(26, 37, 39), true);
-            Art.Line(g, ink, 2, box.X, box.Y + 14, box.X, box.Bottom - 14);
-            CounsellorId voice = CouncilDefaultVoice(report);
-            CounsellorProfile profile = CouncilPerspectives.Profile(voice);
-            CouncilOpinion opinion = AdviserOpinion(report, voice);
-            AdviserPortraits.Draw(g, new RectangleF(box.X + 16, box.Y + 12, 84, 84), voice, ink);
-            Typography.Line(g, profile.Name, new RectangleF(box.X + 116, box.Y + 12, 331, 29), 22, ink, TypeRole.Heading, true);
-            Typography.Line(g, profile.Title, new RectangleF(box.X + 117, box.Y + 42, 328, 23), 16, Art.Muted, TypeRole.Annotation, true);
-            Typography.Label(g, AdviserContext(report), new RectangleF(box.X + 117, box.Y + 65, 328, 19), 10, ink, .35f);
-            Typography.Line(g, report.SubjectName, new RectangleF(box.X + 117, box.Y + 84, 355, 21), 16, Art.Muted, TypeRole.Annotation, true);
-            string title = report.Title;
-            int separator = title.LastIndexOf(':');
-            if (!report.IsGuidance && separator >= 0) { title = title.Substring(separator + 1).Trim(); if (title.Length > 0) title = Char.ToUpperInvariant(title[0]) + title.Substring(1); }
-            RectangleF titleBox = new RectangleF(box.X + 18, box.Y + 108, box.Width - 36, 52);
-            Typography.Draw(g, title, titleBox, AdviserReadingSize(g, title, titleBox, 24, 19, TypeRole.Heading), Art.Ink, TypeRole.Heading);
-            string speech = "\u201c" + opinion.Speech + "\u201d";
-            RectangleF bodyBox = new RectangleF(box.X + 20, box.Y + 167, box.Width - 40, 65);
-            Typography.Draw(g, speech, bodyBox, AdviserReadingSize(g, speech, bodyBox, 20, 17, TypeRole.Annotation), Art.Ink, TypeRole.Annotation);
-            string key = report.Key; int occurrence = adviserOccurrences[key];
-            Button(g, "Tell me more", box.X + 19, box.Y + 242, 212, 32, delegate { OpenAdvisers(key); }, true, false);
-            MapTip("Hear all four advisers and inspect this concern. Opening the council pauses autoplay.");
-            int waiting = Math.Max(0, adviserReports.Count(AdviserUnread) - 1);
-            Typography.Line(g, waiting > 0 ? "+" + waiting + " waiting" : "", new RectangleF(box.X + 250, box.Y + 243, 151, 30), 16, Art.Muted, TypeRole.Annotation, true);
-            Button(g, "\u00d7", box.Right - 44, box.Y + 10, 32, 27, delegate { AcknowledgeDisplayedAdviser(report, occurrence); }, false, false);
-            MapTip("Dismiss this concern. It stays in Advisers and returns if it becomes more urgent.");
+            Art.Panel(g, box, Color.FromArgb(26, 37, 39), false);
+            Art.Line(g, ink, 2, box.X, box.Y + 10, box.X, box.Bottom - 10);
+            AdviserPortraits.Draw(g, new RectangleF(box.X + 12, box.Y + 13, 44, 44), voice, ink);
+            Typography.Line(g, profile.Name, new RectangleF(box.X + 69, box.Y + 11, box.Width - 108, 27), 19, ink, TypeRole.Heading, true);
+            string sentence = AdviserCueSentence(report);
+            RectangleF summary = new RectangleF(box.X + 69, box.Y + 42, box.Width - 83, 51);
+            Typography.Draw(g, sentence, summary, AdviserReadingSize(g, sentence, summary, 17, 15, TypeRole.Body), Art.Ink, TypeRole.Body);
+            Typography.Line(g, report.SubjectName, new RectangleF(box.X + 14, box.Y + 102, box.Width - 135, 22), 15, Art.Muted, TypeRole.Annotation, true);
+            buttons.Add(new UiButton(box, delegate { OpenAdvisers(key); }));
+            MapTip(profile.Name + ": " + report.Title + "\n" + report.Summary + "\nOpen Details for the full explanation and other advisers' views.");
+            Button(g, "Details >", box.Right - 110, box.Y + 100, 96, 25, delegate { OpenAdvisers(key); }, false, false);
+            MapTip("Read the full advice, its tradeoffs and the other advisers' views. Opening Details pauses autoplay.");
+            Button(g, "\u00d7", box.Right - 31, box.Y + 9, 22, 22, delegate { AcknowledgeDisplayedAdviser(report, occurrence); }, false, false);
+            MapTip("Dismiss this advice. It remains available in Advisers.");
         }
 
         private void DrawAdvisers(Graphics g)

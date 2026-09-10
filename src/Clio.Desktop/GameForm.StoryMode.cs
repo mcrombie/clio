@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
@@ -147,14 +147,12 @@ namespace Clio.Desktop
 
         private void DrawSemiautomaticDock(Graphics g)
         {
-            DrawFloatingMapPanel(g, new RectangleF(16, 860, 953, 59));
-            Art.Icon(g, "quill", 31, 874, 29, Art.Gold);
-            Typography.Line(g, storyDirectiveUntilTurn > game.Turn ? CurrentStoryChoiceTitle() : "A decision awaits your people", new RectangleF(79, 864, 590, 27), 23, Art.Ink, TypeRole.Heading, true);
-            string state = autoplay ? "Bands are acting" : "Paused";
-            string detail = storyDirectiveUntilTurn > game.Turn ? state + " / " + (storyDirectiveUntilTurn - game.Turn) + " turns until the next decision" : "Continue story to choose a direction. You do not need to order each band.";
-            Typography.Line(g, detail, new RectangleF(81, 893, 724, 21), 14, Art.Muted, TypeRole.Annotation, true);
-            Button(g, "Decisions", 830, 871, 124, 37, OpenStoryChoiceHistory, false, false);
-            MapTip("Read your decisions and their intended consequences. " + StoryProgress());
+            Art.Icon(g, "quill", 34, 876, 26, Art.Gold);
+            RectangleF direction = new RectangleF(79, 870, 718, 37);
+            Typography.Line(g, storyDirectiveUntilTurn > game.Turn ? CurrentStoryChoiceTitle() : "A decision awaits", direction, 23, Art.Ink, TypeRole.Heading, true);
+            buttons.Add(new UiButton(direction, OpenStoryChoiceHistory) { Tip = (autoplay ? "Bands are acting. " : "Story paused. ") +
+                (storyDirectiveUntilTurn > game.Turn ? (storyDirectiveUntilTurn - game.Turn) + " turns until the next decision. " : "Continue the story to choose a direction. ") + StoryProgress() });
+            MapIconButton(g, "history", new RectangleF(897, 868, 43, 43), OpenStoryChoiceHistory, false, false, "Your decisions\nRead chosen priorities and consequences.");
         }
 
         private void DrawSemiautomaticPageDock(Graphics g)

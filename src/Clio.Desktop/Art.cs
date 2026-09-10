@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -71,6 +71,18 @@ namespace Clio.Desktop
             {
                 if (key == "leaf")
                 { g.DrawBezier(pen, 4, 21, 7, 9, 9, 5, 21, 3); g.DrawBezier(pen, 4, 21, 1, 9, 10, 1, 21, 3); g.DrawBezier(pen, 4, 21, 17, 23, 22, 12, 21, 3); g.DrawLine(pen, 8, 14, 8, 8); g.DrawLine(pen, 12, 10, 17, 11); }
+                else if (key == "people")
+                { g.DrawEllipse(pen, 9, 2, 6, 6); g.DrawArc(pen, 6, 10, 12, 16, 180, 180); g.DrawLine(pen, 6, 18, 18, 18); g.DrawEllipse(pen, 2, 5, 4, 4); g.DrawArc(pen, 0, 11, 8, 12, 180, 120); g.DrawEllipse(pen, 18, 5, 4, 4); g.DrawArc(pen, 16, 11, 8, 12, 240, 120); }
+                else if (key == "cooperate")
+                { g.DrawEllipse(pen, 1, 7, 14, 10); g.DrawEllipse(pen, 9, 7, 14, 10); }
+                else if (key == "conflict")
+                { g.DrawLines(pen, new[] { new PointF(3, 21), new PointF(20, 4), new PointF(22, 2), new PointF(20, 8) }); g.DrawLines(pen, new[] { new PointF(21, 21), new PointF(4, 4), new PointF(2, 2), new PointF(4, 8) }); g.DrawLine(pen, 2, 15, 9, 22); g.DrawLine(pen, 15, 22, 22, 15); }
+                else if (key == "adviser")
+                { g.DrawRectangle(pen, 2, 3, 20, 14); g.DrawLines(pen, new[] { new PointF(5, 17), new PointF(5, 22), new PointF(11, 17) }); g.DrawLine(pen, 6, 8, 18, 8); g.DrawLine(pen, 6, 12, 14, 12); }
+                else if (key == "settings")
+                { for (int i = 0; i < 3; i++) { float row = 5 + i * 7; g.DrawLine(pen, 2, row, 22, row); g.FillRectangle(brush, i == 1 ? 14 : 6, row - 3, 4, 6); } }
+                else if (key == "locate")
+                { g.DrawEllipse(pen, 5, 5, 14, 14); g.DrawEllipse(pen, 10, 10, 4, 4); g.DrawLine(pen, 12, 1, 12, 5); g.DrawLine(pen, 12, 19, 12, 23); g.DrawLine(pen, 1, 12, 5, 12); g.DrawLine(pen, 19, 12, 23, 12); }
                 else if (key == "move")
                 { g.DrawEllipse(pen, 3, 16, 4, 4); g.DrawBezier(pen, 7, 18, 24, 18, 4, 6, 20, 6); g.DrawLines(pen, new[] { new PointF(16, 3), new PointF(21, 6), new PointF(17, 10) }); }
                 else if (key == "orders")

@@ -7,10 +7,23 @@ namespace Clio.Desktop
 {
     public sealed partial class GameForm
     {
+        private bool bandDetailsOpen;
+
+        private void ToggleBandDetails()
+        {
+            if (BlockingSheet || game == null || game.IsOver) return;
+            bool open = !bandDetailsOpen;
+            ClearMapTransient(); page = 0; bandDetailsOpen = open;
+            buttons.Clear(); Invalidate();
+        }
+
+        private void CloseBandDetails()
+        { bandDetailsOpen = false; HideMapHover(); buttons.Clear(); Invalidate(); }
+
         // The card holds no simulation snapshot. Ownership and remaining actions
         // are read again whenever it is painted, including after succession.
         private RectangleF BandPanelBounds
-        { get { return page == 0 && game != null && !game.IsOver && !semiautomatic ? game.BandPersonalitiesEnabled ? new RectangleF(32, 528, 356, 222) : new RectangleF(32, 564, 356, 186) : RectangleF.Empty; } }
+        { get { return bandDetailsOpen && page == 0 && game != null && !game.IsOver ? game.BandPersonalitiesEnabled ? new RectangleF(32, 528, 356, 222) : new RectangleF(32, 564, 356, 186) : RectangleF.Empty; } }
 
         private bool BandPanelContains(PointF point)
         { return !BandPanelBounds.IsEmpty && BandPanelBounds.Contains(point); }
@@ -27,6 +40,8 @@ namespace Clio.Desktop
             Art.Fill(g, Color.FromArgb(58, 0, 0, 0), box.X + 4, box.Y + 4, box.Width, box.Height);
             Art.Panel(g, box, Color.FromArgb(22, 34, 37), true);
             Typography.Label(g, actor == null ? "Choose your household" : "Selected band", new RectangleF(box.X + 15, box.Y + 7, 238, 20), 11.5f, Art.Gold, .6f);
+            Button(g, "\u00d7", box.Right - 35, box.Y + 9, 26, 26, CloseBandDetails, false, false);
+            MapTip("Close band details. Select the band badge to reopen them.");
             if (actor == null)
             {
                 Typography.Line(g, "No band selected", new RectangleF(box.X + 15, box.Y + 27, 324, 35), 27, Art.Ink, TypeRole.Heading, true);
@@ -36,10 +51,10 @@ namespace Clio.Desktop
             }
 
             IdentityArt.DrawEmblem(g, game.TribeOf(actor.Id), new RectangleF(box.X + 14, box.Y + 30, 30, 30), false);
-            Typography.Line(g, actor.Name, new RectangleF(box.X + 54, box.Y + 25, 209, 39), 27, Art.Ink, TypeRole.Heading, true);
+            Typography.Line(g, actor.Name, new RectangleF(box.X + 54, box.Y + 25, 175, 39), 27, Art.Ink, TypeRole.Heading, true);
             int actions = game.ActionsFor(actor.Id);
-            Typography.Line(g, actions + " / 2", new RectangleF(box.Right - 81, box.Y + 12, 66, 33), 25, actions > 0 ? Art.Gold : Art.Muted, TypeRole.Number, false, StringAlignment.Center);
-            Typography.Label(g, "Actions", new RectangleF(box.Right - 82, box.Y + 43, 69, 19), 10.5f, Art.Muted, .35f, StringAlignment.Center);
+            Typography.Line(g, actions + " / 2", new RectangleF(box.Right - 113, box.Y + 12, 66, 33), 25, actions > 0 ? Art.Gold : Art.Muted, TypeRole.Number, false, StringAlignment.Center);
+            Typography.Label(g, "Actions", new RectangleF(box.Right - 114, box.Y + 43, 69, 19), 10.5f, Art.Muted, .35f, StringAlignment.Center);
             Art.Line(g, Color.FromArgb(65, Art.Gold), .7f, box.X + 15, box.Y + 68, box.Right - 15, box.Y + 68);
 
             double needs = game.Upkeep(actor) + BandEconomy.DomesticEffects(game, actor).AnimalCare;
@@ -122,9 +137,11 @@ namespace Clio.Desktop
         private void DrawBandHoldControl(Graphics g, Band actor, RectangleF bounds, string label)
         {
             int id = actor == null ? -1 : actor.Id;
-            bool available = game.BandPersonalitiesEnabled && game.CanControlBand(id) && game.ActionsFor(id) > 0;
+            bool available = !SemiautomaticMode && game.BandPersonalitiesEnabled && game.CanControlBand(id) && game.ActionsFor(id) > 0;
             EncounterAction(g, label, bounds, available, delegate { HoldBandThisTurn(id); }, false);
-            if (available) MapTip("Finish this band's remaining actions and keep it from wandering on its own this turn. Normal food and salt upkeep still applies.");
+            string tip = SemiautomaticMode ? "Switch to Manual to give a direct hold order." : "Finish this band's remaining actions and keep it from wandering on its own this turn. Normal food and salt upkeep still applies.";
+            if (!available) buttons.Add(new UiButton(bounds, delegate { status = tip; Invalidate(); }));
+            MapTip(tip);
         }
 
         private void DrawBandPanelMetric(Graphics g, RectangleF bounds, string label, string value, Color ink, int ledger, string tip)

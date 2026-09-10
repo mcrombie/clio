@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -133,7 +133,7 @@ namespace Clio.Desktop
             Button(g, "Save", 1233, 29, 87, 36, SaveStory, false, false);
             Button(g, "Load", 1330, 29, 87, 36, LoadStory, false, false);
             Button(g, "New story", 1427, 29, 145, 36, NewStory, false, false);
-            if (page == 0) DrawMapRibbon(g); else DrawOverviewBar(g);
+            DrawCompactStatus(g);
             if (page == 0) DrawWorld(g);
             else if (page == 1) DrawEconomy(g);
             else if (page == 2) DrawCulture(g);
@@ -149,7 +149,8 @@ namespace Clio.Desktop
             else DrawCommandDock(g);
             Typography.Line(g, Timeline.DisplayText(game, status), new RectangleF(29, 930, 1150, 25), 14, Art.Muted, TypeRole.Body);
             DrawBuildIdentity(g);
-            Button(g, fullscreen ? "Return to window  [F11]" : "Fullscreen  [F11]", 1356, 930, 228, 26, ToggleFullscreen, fullscreen, false);
+            Button(g, "F11", 1521, 930, 63, 26, ToggleFullscreen, fullscreen, false);
+            MapTip(fullscreen ? "Return to a window [F11 / Alt+Enter]." : "Enter fullscreen [F11 / Alt+Enter].");
             DrawNotice(g);
             DrawAdviserToast(g);
             if (page == 0 && !BlockingSheet) DrawMapMenus(g);
@@ -217,7 +218,11 @@ namespace Clio.Desktop
                 Art.Panel(g, new RectangleF(p.X, p.Y, 444, 130), k.Known ? Color.FromArgb(43, 55, 47) : Panel, false);
                 Art.Line(g, k.Known ? Art.Gold : Border, 2, p.X, p.Y, p.X + 444, p.Y);
                 Typography.Line(g, k.Name, new RectangleF(p.X + 16, p.Y + 6, 412, 34), 26, k.Known ? Art.Gold : Art.Ink, TypeRole.Heading, true);
-                Typography.Draw(g, Timeline.DisplayText(game, k.Description), new RectangleF(p.X + 16, p.Y + 44, 412, 51), 14, Art.Muted, TypeRole.Body);
+                Art.Icon(g, k.Known ? "branch" : "quill", p.X + 17, p.Y + 54, 23, k.Known ? Art.Gold : Art.Muted);
+                Typography.Line(g, k.Known ? "Shared practice" : "Learning through experience", new RectangleF(p.X + 53, p.Y + 51, 368, 29), 17, Art.Muted, TypeRole.Annotation, true);
+                string practiceHelp = Timeline.DisplayText(game, k.Description);
+                buttons.Add(new UiButton(new RectangleF(p.X, p.Y, 444, 130), delegate { status = practiceHelp; Invalidate(); })
+                    { Tip = k.Name + "\n" + practiceHelp + "\n" + (k.Known ? "Known to your people." : Math.Min(k.Progress, k.Target) + " / " + k.Target + " experience. Practice the related activity to learn.") });
                 Meter(g, p.X + 16, p.Y + 109, 337, (double)k.Progress / k.Target, Art.Gold);
                 Typography.Line(g, k.Known ? "Known" : Math.Min(k.Progress, k.Target) + " / " + k.Target, new RectangleF(p.X + 371, p.Y + 99, 54, 25), 15, Art.Gold, k.Known ? TypeRole.Annotation : TypeRole.Number, true, StringAlignment.Far);
             }
@@ -284,11 +289,14 @@ namespace Clio.Desktop
         }
         private void Surface(Graphics g, string title, string subtitle)
         {
-            Art.Panel(g, new RectangleF(16, 188, 1568, 607), Color.FromArgb(19, 29, 34), true);
-            Typography.Label(g, "The record of a people", new RectangleF(44, 198, 1040, 22), 11, Art.Gold, 1.2f);
-            Typography.Label(g, "Folio " + new[] { "", "I", "II", "III", "V", "IV" }[page], new RectangleF(1420, 198, 114, 22), 11, Art.Gold, 1.1f, StringAlignment.Far);
-            Typography.Line(g, title, new RectangleF(41, 216, 1450, 43), 37, Art.Ink, TypeRole.Display, true);
-            Typography.Line(g, subtitle, new RectangleF(45, 256, 1488, 27), 18, Art.Muted, TypeRole.Annotation, true);
+            Art.Panel(g, new RectangleF(16, 174, 1568, 621), Color.FromArgb(19, 29, 34), false);
+            Typography.Line(g, title, new RectangleF(42, 204, 1427, 49), 35, Art.Ink, TypeRole.Display, true);
+            if (!String.IsNullOrWhiteSpace(subtitle))
+            {
+                RectangleF help = new RectangleF(1503, 212, 32, 32);
+                Typography.Line(g, "?", help, 21, Art.Muted, TypeRole.Heading, false, StringAlignment.Center);
+                buttons.Add(new UiButton(help, delegate { status = subtitle; Invalidate(); }) { Tip = title + "\n" + subtitle });
+            }
         }
         private void Button(Graphics g, string text, float x, float y, float w, float h, Action click, bool active, bool action)
         {
@@ -595,7 +603,7 @@ namespace Clio.Desktop
             if (noticeModal) { if (e.KeyCode == Keys.Enter) CloseNotice(false, !resumeAfterNotice); else if (e.KeyCode == Keys.Escape || e.KeyCode == Keys.P && resumeAfterNotice) DismissNotice(false); e.Handled = true; e.SuppressKeyPress = true; return; }
             if (adviserOpen) { if (e.KeyCode == Keys.Escape || e.KeyCode == Keys.Enter) CloseAdvisers(); e.Handled = true; e.SuppressKeyPress = true; return; }
             if (e.KeyCode == Keys.C && !e.Control && !e.Alt) { OpenAdvisers(null); e.Handled = true; e.SuppressKeyPress = true; return; }
-            if (e.KeyCode == Keys.Escape && page == 0 && (mapSelectionOpen || mapMenu != 0)) { ClearMapTransient(); buttons.Clear(); Invalidate(); e.Handled = true; e.SuppressKeyPress = true; return; }
+            if (e.KeyCode == Keys.Escape && page == 0 && (mapSelectionOpen || bandDetailsOpen || mapMenu != 0)) { ClearMapTransient(); buttons.Clear(); Invalidate(); e.Handled = true; e.SuppressKeyPress = true; return; }
             if (e.KeyCode == Keys.P && !e.Control && !e.Alt) { ToggleAutoplay(); e.Handled = true; e.SuppressKeyPress = true; }
             else if (e.KeyCode == Keys.N && !e.Control && !e.Alt) { NextReadyBand(); e.Handled = true; e.SuppressKeyPress = true; }
             else if (e.KeyCode == Keys.Escape) { StopAutoplay("You are guiding your people again."); if (fullscreen) SetFullscreen(false); e.Handled = true; e.SuppressKeyPress = true; }

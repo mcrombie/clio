@@ -7,7 +7,15 @@ namespace Clio.Desktop
 {
     public sealed partial class GameForm
     {
-        private RectangleF MapSelectionBounds { get { return new RectangleF(1194, 228, 368, 484); } }
+        private bool mapCardExpanded;
+        private RectangleF MapSelectionBounds { get { return new RectangleF(1194, 228, 368, unitStackOpen ? 484 : mapCardExpanded ? 524 : 256); } }
+
+        private void ToggleMapCardDetails()
+        {
+            if (!mapSelectionOpen || unitStackOpen || BlockingSheet) return;
+            mapCardExpanded = !mapCardExpanded;
+            HideMapHover(); buttons.Clear(); Invalidate();
+        }
 
         private bool MapCardKnown(int cell)
         { return cell >= 0 && cell < game.World.Cells.Length && game.Explored.Contains(cell); }
@@ -28,40 +36,27 @@ namespace Clio.Desktop
         {
             if (page != 0 || BlockingSheet || id < 0) return;
             if (kind >= MapRenderer.FoodOpportunity) { DrawOpportunityNote(g, kind, id, anchor); return; }
-            string label = "Atlas only", title = "Beyond the known paths";
-            string first = "No report has reached your people.", second = "Explore to learn what lives here.", hint = "Click to keep this note open";
-            string caution = "";
+            string title = "Beyond the known paths";
+            string summary = "Not discovered by your people.", hint = "Click for details";
+            Color summaryInk = Art.Ink;
             if (kind == 0)
             {
                 if (id >= game.World.Cells.Length) return;
                 Cell cell = game.World.Cells[id];
                 if (MapCardKnown(id))
                 {
-                    label = "A place remembered"; title = game.Place(id); first = cell.Terrain + "  ·  " + MapCardRoute(id);
-                    second = cell.IsLand ? "+" + game.ForageYield(id, CurrentOrderBand).ToString("0") + " gathering  ·  " + ((1 - game.Depletion[id]) * 100).ToString("0") + "% ground recovery" : "Open water  ·  Land travel ends here";
-                    hint = MapOrderHint(id);
-                    if (cell.IsLand) caution = MapPlaceCaution(id);
-                    if (game.TerrainTravelEnabled && cell.IsLand)
-                    {
-                        int frontier = MapRenderer.FrontierUnknownNeighbors(game, id);
-                        double gathering = MapRenderer.GatheringValue(game, CurrentOrderBand, id);
-                        if (gathering >= MapRenderer.StrongGatheringValue) { label = "A generous gathering place"; second = "+" + game.ForageYield(id, CurrentOrderBand).ToString("0") + " per Gather  ·  " + gathering.ToString("0.0") + "× needs"; }
-                        else if (frontier > 0) { label = "At the edge of the known land"; second = frontier + " neighboring hexes remain unknown"; }
-                    }
+                    title = game.Place(id);
+                    summary = cell.IsLand ? cell.Terrain + " · +" + game.ForageYield(id, CurrentOrderBand).ToString("0") + " food / gather" : "Open water · No land route";
                     SaltSource salt = MapCardSaltSource(id);
-                    if (salt != SaltSource.None)
+                    if (salt != SaltSource.None) summary = cell.Terrain + " · " + SaltSourceLabel(salt);
+                    if (cell.IsLand && game.Rules == SimulationRules.MobileUnits && EncounterRules.HostileAt(game, id, CurrentOrderBand.Id))
                     {
-                        label = "A source of salt"; first = cell.Terrain + "  ·  " + SaltSourceLabel(salt);
-                        second = id == CurrentOrderBand.CellId ? "Salt here  ·  " + CurrentOrderBand.Salt.ToString("0.0") + " in reserve" : "Bring your band here to gather salt";
-                        if (id == CurrentOrderBand.CellId) hint = "Click for salt gathering and reserves";
+                        summary = cell.Terrain + " · Hostile groups here"; summaryInk = BandPanelWarning;
                     }
                 }
                 else
                 {
-                    label = map.Fog ? "Unexplored" : "Atlas only";
                     title = map.Fog ? "Beyond the known paths" : cell.Terrain.ToString();
-                    first = "Not discovered by your people.";
-                    second = map.Fog ? "Travel farther to extend their map." : "The atlas does not add to their knowledge.";
                 }
             }
             else if (kind == 1)
@@ -69,10 +64,9 @@ namespace Clio.Desktop
                 Band band = MapCardBand(id);
                 if (band != null)
                 {
-                    label = game.CanControlBand(band.Id) ? "Your tribe" : "An independent people"; title = band.Name;
-                    first = band.Population.ToString("N0") + " people  ·  " + (band.Settled ? "Established hearth" : "Wandering band");
-                    second = game.Rules == SimulationRules.MobileUnits ? EncounterRules.Band(game, band).Strength.ToString("0.0") + " fighting strength  ·  " + (band.Cohesion * 100).ToString("0") + "% cohesion" : (band.Cohesion * 100).ToString("0") + "% cohesion";
-                    hint = game.CanControlBand(band.Id) ? "Click to command  ·  " + UnitsActionCount(band.Id) : "Click to inspect this people";
+                    title = band.Name;
+                    summary = band.Population.ToString("N0") + " people · " + (game.CanControlBand(band.Id) ? UnitsActionCount(band.Id) : "Independent people");
+                    hint = game.CanControlBand(band.Id) ? "Click to select · Details on demand" : "Click for details and encounters";
                 }
             }
             else if (kind == 2)
@@ -80,16 +74,16 @@ namespace Clio.Desktop
                 Beast animal = MapCardAnimal(id);
                 if (animal != null)
                 {
-                    label = animal.Domestic ? "Domestic companions" : "A moving animal group"; title = AnimalUnitName(animal);
-                    first = animal.Count.ToString("N0") + (animal.Count == 1 ? " animal" : " animals");
+                    title = AnimalUnitName(animal);
+                    summary = animal.Count.ToString("N0") + (animal.Count == 1 ? " animal" : " animals");
                     if (game.Rules == SimulationRules.MobileUnits)
                     {
                         UnitProfile unit = EncounterRules.Animal(game, animal);
-                        first += "  ·  " + UnitTemperament(unit);
-                        second = unit.CurrentHealth + " / " + unit.MaxHealth + " health  ·  " + unit.Strength.ToString("0.0") + " strength";
+                        summary += " · " + UnitTemperament(unit);
+                        if (unit.Hostile) summaryInk = BandPanelWarning;
                     }
-                    else second = animal.Domestic ? "Shares a life with a household" : "A wild group in the remembered land";
-                    hint = "Click for condition and encounters";
+                    else summary += animal.Domestic ? " · Domestic" : " · Wild";
+                    hint = "Click for details and encounters";
                 }
             }
             else return;
@@ -97,7 +91,7 @@ namespace Clio.Desktop
             RectangleF mapArea = map.Bounds;
             float x = anchor.X + 21, y = anchor.Y + 21;
             const float width = 330;
-            float height = caution.Length > 0 ? 194 : 164;
+            const float height = 111;
             if (x + width > mapArea.Right - 12) x = anchor.X - width - 21;
             if (y + height > mapArea.Bottom - 12) y = anchor.Y - height - 21;
             x = Math.Max(mapArea.Left + 12, Math.Min(x, mapArea.Right - width - 12));
@@ -111,12 +105,9 @@ namespace Clio.Desktop
             Art.Fill(g, Color.FromArgb(54, 0, 0, 0), box.X + 4, box.Y + 5, box.Width, box.Height);
             Art.Panel(g, box, Color.FromArgb(24, 35, 38), false);
             Art.Line(g, Art.Gold, 1, x + 14, y, x + 62, y);
-            Typography.Label(g, label, new RectangleF(x + 15, y + 10, 300, 20), 10, Art.Gold, .6f);
-            Typography.Line(g, title, new RectangleF(x + 13, y + 32, 304, 34), 26, Art.Ink, TypeRole.Heading, true);
-            Typography.Line(g, first, new RectangleF(x + 15, y + 71, 300, 24), 15, Art.Ink, TypeRole.Body, true);
-            Typography.Line(g, second, new RectangleF(x + 15, y + 98, 300, 24), 14, Art.Muted, TypeRole.Body, true);
-            if (caution.Length > 0) Typography.Line(g, caution, new RectangleF(x + 15, y + 125, 300, 24), 14, Color.FromArgb(222, 183, 138), TypeRole.Body, true);
-            Typography.Line(g, hint, new RectangleF(x + 15, box.Bottom - 32, 300, 21), 14, Art.Gold, TypeRole.Annotation, true);
+            Typography.Line(g, title, new RectangleF(x + 13, y + 10, 304, 34), 25, Art.Ink, TypeRole.Heading, true);
+            Typography.Line(g, summary, new RectangleF(x + 15, y + 49, 300, 24), 15, summaryInk, TypeRole.Body, true);
+            Typography.Line(g, hint, new RectangleF(x + 15, y + 80, 300, 21), 14, Art.Gold, TypeRole.Annotation, true);
         }
 
         private string[] MapOpportunityText(int kind, int cell)
@@ -160,7 +151,7 @@ namespace Clio.Desktop
 
         private RectangleF OpportunityNoteBounds(PointF anchor)
         {
-            const float width = 370, height = 296;
+            const float width = 350, height = 119;
             RectangleF area = map.Bounds;
             float x = anchor.X + 23, y = anchor.Y + 23;
             if (x + width > area.Right - 12) x = anchor.X - width - 23;
@@ -182,13 +173,12 @@ namespace Clio.Desktop
             Art.Panel(g, box, Color.FromArgb(24, 35, 38), false);
             Art.Line(g, ink, 2, box.X + 15, box.Y, box.Right - 15, box.Y);
             DrawLandscapeMark(g, kind == MapRenderer.FoodOpportunity ? 0 : kind == MapRenderer.SaltOpportunity ? 1 : 2, new RectangleF(box.X + 16, box.Y + 13, 19, 19), ink);
-            Typography.Label(g, "Map opportunity", new RectangleF(box.X + 43, box.Y + 11, 310, 23), 11, ink, .6f);
-            Typography.Line(g, text[0], new RectangleF(box.X + 13, box.Y + 36, 342, 36), 27, Art.Ink, TypeRole.Heading, true);
-            Typography.Line(g, text[1], new RectangleF(box.X + 16, box.Y + 73, 338, 26), 19, Art.Gold, TypeRole.Annotation, true);
-            Typography.Draw(g, text[2], new RectangleF(box.X + 16, box.Y + 105, 338, 43), 16, Art.Ink, TypeRole.Body);
-            Typography.Draw(g, text[3], new RectangleF(box.X + 16, box.Y + 154, 338, 59), 16, Art.Muted, TypeRole.Body);
-            Typography.Draw(g, text[4], new RectangleF(box.X + 16, box.Y + 220, 338, 45), 14, ink, TypeRole.Body);
-            Typography.Line(g, "Left-click to inspect this place", new RectangleF(box.X + 16, box.Y + 271, 338, 20), 13, Art.Muted, TypeRole.Annotation, true);
+            Typography.Line(g, text[0], new RectangleF(box.X + 43, box.Y + 9, 289, 32), 25, Art.Ink, TypeRole.Heading, true);
+            string summary = kind == MapRenderer.FoodOpportunity ? "+" + game.ForageYield(cell, CurrentOrderBand).ToString("0") + " food per Gather action" :
+                kind == MapRenderer.SaltOpportunity ? SaltSourceLabel(MapCardSaltSource(cell)) + " · Gather salt here" :
+                MapRenderer.FrontierUnknownNeighbors(game, cell) + " nearby hexes to discover";
+            Typography.Line(g, summary, new RectangleF(box.X + 16, box.Y + 49, 318, 24), 16, ink, TypeRole.Body, true);
+            Typography.Line(g, "Map marker · Click for details", new RectangleF(box.X + 16, box.Y + 85, 318, 21), 14, Art.Muted, TypeRole.Annotation, true);
         }
 
         private string MapPlaceCaution(int cell)
@@ -212,9 +202,12 @@ namespace Clio.Desktop
             buttons.RemoveAll(b => b.Bounds.IntersectsWith(bounds));
             Art.Fill(g, Color.FromArgb(65, 0, 0, 0), bounds.X - 4, bounds.Y + 5, bounds.Width + 8, bounds.Height + 3);
             Art.Panel(g, bounds, Color.FromArgb(24, 35, 38), true);
-            if (inspectorPage == 1) DrawMapBandCard(g, MapCardBand(inspectedBandId));
+            if (!mapCardExpanded) DrawMapCompactCard(g, bounds);
+            else if (inspectorPage == 1) DrawMapBandCard(g, MapCardBand(inspectedBandId));
             else if (inspectorPage == 2) DrawMapAnimalCard(g, MapCardAnimal(selectedAnimalId));
             else DrawMapPlaceCard(g);
+            Button(g, mapCardExpanded ? "Less detail" : "More details", bounds.X + 19, bounds.Bottom - 36, bounds.Width - 38, 25, ToggleMapCardDetails, false, false);
+            MapTip(mapCardExpanded ? "Return to the compact summary." : "Expand the complete record, explanations and additional actions.");
             Button(g, "×", 1519, 241, 27, 27, CloseMapSelection, false, false);
             MapTip("Close this record and return to the map. Escape also closes it.");
         }

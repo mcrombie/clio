@@ -4,7 +4,7 @@
 
 Clio is an experimental Windows desktop game written in C#. Explore a generated hex world, maintain food and salt supplies, gather wood for fires and camps, form new bands, and watch related peoples separate into independent polities. Languages, place names, encounters and decisions become part of the recorded story.
 
-The current source corresponds to **livestock-29**. It uses a native Windows Forms interface and an engine-independent simulation. A separate Unity presentation starter is included for future development.
+The current source corresponds to **quiet-30**. It uses a native Windows Forms interface and an engine-independent simulation. A separate Unity presentation starter is included for future development.
 
 ## Play on Windows
 
@@ -19,7 +19,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\build.ps1
 & ".\Launch Clio.cmd"
 ```
 
-The executable and simulation library are written to `build/livestock-29/`. Keep them together. Build output and saved games are not included in the repository.
+The executable and simulation library are written to `build/quiet-30/`. Keep them together. Build output and saved games are not included in the repository.
 
 Clio opens fullscreen. **F11** or **Alt+Enter** returns to a window. Save before closing an older build, then launch the updated version and load the story. Compatible earlier stories replay their original history before receiving recorded rules upgrades. Automation always loads stopped. Livestock stories use save format V13; older stories receive the new rules after replay, releasing any formerly domestic deer alive.
 
@@ -32,6 +32,12 @@ Clio opens fullscreen. **F11** or **Alt+Enter** returns to a window. Save before
 | **Automatic** | Watch the computer handle the bands and turns without story decisions. |
 
 Choose a mode from the bottom dock. Automatic starts immediately; **P** or **Take control** returns to Manual. In Semiautomatic mode, clicking a choice applies it immediately, and **P** pauses or continues. **Watch settings** controls pace, camera following, event pauses and adviser frequency.
+
+## Reading the interface
+
+The same compact status strip appears on every page: people and population change, food, salt, wood, tribal contact, known hostile bands and ready bands. Hover any symbol for its meaning and click for the full account. Resource totals cover the tribe; warning marks identify individual-band shortages even when total reserves look healthy.
+
+The map starts with its landscape and compact controls. Click the selected band's name to open its details; map selections show a short card with **More details** available. A small symbol toolbar helps find food, salt and exploration opportunities. Economy opens to six summary cards, with complete ledgers behind them. Advisers and routine events share one compact cue at a time, retaining expanded explanations and the existing frequency setting. [Interface guide](docs/INTERFACE.md).
 
 ## The early game
 
@@ -60,7 +66,7 @@ Start with [Gameplay modes](docs/STORY_MODE.md), [Tribes](docs/TRIBES.md), [Salt
 
 ## Development status
 
-This is a working design prototype, with balance and interface behavior still changing. The latest livestock iteration was compiled without new tests, rendering or playthrough verification, at the author's request. Existing checks remain available through `build.ps1 -Test`; optional native rendering is available through `build.ps1 -Render`. These switches are opt-in. See [Validation status](docs/VALIDATION.md).
+This is a working design prototype, with balance and interface behavior still changing. The latest interface iteration was compiled without new tests, rendering or playthrough verification, at the author's request. Existing checks remain available through `build.ps1 -Test`; optional native rendering is available through `build.ps1 -Render`. These switches are opt-in. See [Validation status](docs/VALIDATION.md).
 
 The Unity files are a starter, not the desktop game or a finished Unity release. Follow [Unity setup](unity/README.md) to explore that path. Full 3D production, expanded institutions, agriculture and later eras remain future work.
 
