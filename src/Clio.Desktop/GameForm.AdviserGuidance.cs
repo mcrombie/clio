@@ -59,15 +59,16 @@ namespace Clio.Desktop
             if (guidanceNoticeCursor > journal.Notices.Count) guidanceNoticeCursor = journal.Notices.Count;
             foreach (StoryNotice notice in journal.Notices.Skip(guidanceNoticeCursor))
             {
-                if (notice.Kind != StoryNoticeKind.Domestication && notice.Kind != StoryNoticeKind.Knowledge && notice.Kind != StoryNoticeKind.Fission && notice.Kind != StoryNoticeKind.Wood) continue;
+                if (notice.Kind != StoryNoticeKind.Domestication && notice.Kind != StoryNoticeKind.Knowledge && notice.Kind != StoryNoticeKind.Fission && notice.Kind != StoryNoticeKind.Wood && notice.Kind != StoryNoticeKind.Livestock) continue;
                 if (notice.Kind == StoryNoticeKind.Wood && notice.Title == "Wood is running low") continue;
+                if (notice.Kind == StoryNoticeKind.Livestock && notice.Title == "Livestock provides meat" && !notice.Important) continue;
                 if (notice.Kind == StoryNoticeKind.Knowledge && !notice.Important) continue;
                 string explanation = Timeline.DisplayText(game, notice.Body + " " + notice.Impact);
-                if (notice.Kind == StoryNoticeKind.Domestication)
+                if (notice.Kind == StoryNoticeKind.Domestication && !game.LivestockEnabled)
                     explanation = Timeline.DisplayText(game, notice.Body) + " The Resources ledger shows this household's actual companion benefits and ongoing care costs.";
-                string summary = notice.Kind == StoryNoticeKind.Knowledge ? Timeline.DisplayText(game, notice.Impact) : notice.Kind == StoryNoticeKind.Domestication ?
+                string summary = notice.Kind == StoryNoticeKind.Knowledge || notice.Kind == StoryNoticeKind.Domestication && game.LivestockEnabled ? Timeline.DisplayText(game, notice.Impact) : notice.Kind == StoryNoticeKind.Domestication ?
                     "Your people have established a companion lineage. Its benefits and ongoing care now belong in the household's resource accounts." : Timeline.DisplayText(game, notice.Body);
-                AdviserAction action = notice.Kind == StoryNoticeKind.Wood ? AdviserAction.ReviewWood : notice.Kind == StoryNoticeKind.Knowledge ? AdviserAction.ReviewCulture : notice.Kind == StoryNoticeKind.Domestication ? AdviserAction.ReviewAnimals : AdviserAction.ReviewUnits;
+                AdviserAction action = notice.Kind == StoryNoticeKind.Wood ? AdviserAction.ReviewWood : notice.Kind == StoryNoticeKind.Knowledge ? AdviserAction.ReviewCulture : notice.Kind == StoryNoticeKind.Domestication || notice.Kind == StoryNoticeKind.Livestock ? AdviserAction.ReviewAnimals : AdviserAction.ReviewUnits;
                 AddAdviserGuidance(new Advisory("guidance:notice:" + notice.Id, notice.Turn, notice.ActorBandId, notice.TargetBandId, notice.CellId,
                     notice.Title, summary, explanation, Timeline.DisplayText(game, notice.Advice), action, 2));
             }
@@ -130,7 +131,7 @@ namespace Clio.Desktop
         private bool IsAdviserGuidanceNotice(StoryNotice notice)
         {
             if (notice == null) return false;
-            if (notice.Kind == StoryNoticeKind.Wood) return true;
+            if (notice.Kind == StoryNoticeKind.Wood || notice.Kind == StoryNoticeKind.Livestock) return true;
             if (notice.Kind == StoryNoticeKind.Gathering)
                 return game.GatheringEvents.Any(e => e.GatheringId >= 0 && e.VisibleToPlayer && e.Turn == notice.Turn && e.Title == notice.Title);
             // StoryNoticeKind.Salt also carries actual deaths and recoveries.

@@ -1,4 +1,4 @@
-using System.Drawing;
+﻿using System.Drawing;
 
 namespace Clio.Desktop
 {
@@ -6,7 +6,7 @@ namespace Clio.Desktop
     {
         // Compiled into the application so a copied or pinned old executable
         // cannot advertise the build selected by today's launcher record.
-        internal const string BuildIdentity = "automatic-28";
+        internal const string BuildIdentity = "livestock-29";
         internal const string BuildWindowTitle = "Clio — The living atlas [" + BuildIdentity + "]";
 
         private void DrawBuildIdentity(Graphics g)

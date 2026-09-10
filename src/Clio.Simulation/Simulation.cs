@@ -5,7 +5,7 @@ using System.Linq;
 namespace Clio.Simulation
 {
     public enum Ancestry { Human, Elf, Dwarf, Goblin }
-    public enum BeastKind { Aurochs, Wolves, Mammoths, Deer, Dragon }
+    public enum BeastKind { Aurochs, Wolves, Mammoths, Deer, Dragon, Goats }
     public sealed class Band
     {
         public int Id, CellId, Population, LanguageId, SafeTurns;
@@ -177,7 +177,7 @@ namespace Clio.Simulation
         { PlaceKnowledge place = TribesEnabled && CulturalPlaceNames ? ObserverKnownPlace(cellId) : null; return place == null ? Place(cellId, Player.Id) : place.Name; }
         public double ForageYield(int cellId, Band band)
         {
-            if (SaltEnabled || Pace != HistoryPace.LegacySeasons || Rules == SimulationRules.MobileUnits) return BandEconomy.ForageYield(this, cellId, band);
+            if (SaltEnabled || LivestockEnabled || Pace != HistoryPace.LegacySeasons || Rules == SimulationRules.MobileUnits) return BandEconomy.ForageYield(this, cellId, band);
             Cell cell = World.Cells[cellId];
             double gathering = band.Id == 0 && Known("gathering") ? 1.15 : 1;
             return Math.Max(0, Math.Round((12 + cell.Forage * 100) * SeasonFactor * Adaptation(band.Ancestry, cell) *
@@ -234,7 +234,7 @@ namespace Clio.Simulation
             return "+" + gained + " provisioning capacity from gathering.";
         }
         public Beast NearbyBeast(bool tamable)
-        { return Beasts.Where(b => b.CellId == ActionBand.CellId && b.Count > 0 && !b.Domestic && (!tamable || b.Kind == BeastKind.Wolves || b.Kind == BeastKind.Aurochs)).OrderBy(b => b.LastContactTurn == Turn).ThenByDescending(b => b.PositiveContacts).FirstOrDefault(); }
+        { return Beasts.Where(b => b.CellId == ActionBand.CellId && b.Count > 0 && !b.Domestic && (!tamable || b.Kind == BeastKind.Wolves || b.Kind == BeastKind.Aurochs || LivestockEnabled && b.Kind == BeastKind.Goats)).OrderBy(b => b.LastContactTurn == Turn).ThenByDescending(b => b.PositiveContacts).FirstOrDefault(); }
         public string Hunt()
         {
             if (Rules == SimulationRules.MobileUnits)
@@ -242,7 +242,7 @@ namespace Clio.Simulation
             string message; if (!CanAct(out message)) return message;
             Beast prey = NearbyBeast(false); if (prey == null) return "There is no wild herd in this cell. Look for animal markers on the map.";
             ActionPoints--; double chance;
-            if (Pace == HistoryPace.LegacySeasons)
+            if (Pace == HistoryPace.LegacySeasons && !LivestockEnabled)
             {
                 chance = prey.Kind == BeastKind.Dragon ? 0.12 : prey.Kind == BeastKind.Wolves ? 0.6 : 0.8;
                 if (Known("tracking")) chance += 0.1;
@@ -252,7 +252,7 @@ namespace Clio.Simulation
             if (Next(ref actionRandom) < chance)
             {
                 int killed = Math.Min(prey.Count, prey.Kind == BeastKind.Dragon ? 1 : 3);
-                prey.Count -= killed; double food = killed * (prey.Kind == BeastKind.Mammoths ? 75 : prey.Kind == BeastKind.Wolves ? 15 : 38);
+                prey.Count -= killed; double food = killed * (prey.Kind == BeastKind.Mammoths ? 75 : prey.Kind == BeastKind.Wolves ? 15 : prey.Kind == BeastKind.Goats ? 8 : 38);
                 ActionBand.Food += food; hunts++; UpdateKnowledge(); Log("Hunters return with " + food + " provisions from " + prey.Kind.ToString().ToLowerInvariant() + ".");
                 return "The hunt succeeds: +" + food + " provisions.";
             }
@@ -263,12 +263,12 @@ namespace Clio.Simulation
         {
             if (Rules == SimulationRules.MobileUnits)
             {
-                Beast target = Beasts.Where(b => b.CellId == ActionBand.CellId && b.Count > 0 && !b.Domestic && b.LastContactTurn != Turn)
+                Beast target = Beasts.Where(b => b.CellId == ActionBand.CellId && b.Count > 0 && !b.Domestic && b.LastContactTurn != Turn && LivestockEconomy.CanDomesticate(this, b))
                     .OrderByDescending(b => b.PositiveContacts).ThenBy(b => b.Id).FirstOrDefault();
                 return target == null ? "Select a known animal group to approach and befriend." : BefriendAnimal(target.Id);
             }
             string message; if (!CanAct(out message)) return message;
-            Beast beast = NearbyBeast(true); if (beast == null) return "Seek a wild wolf pack or aurochs herd in the band's cell.";
+            Beast beast = NearbyBeast(true); if (beast == null) return LivestockEnabled ? "Seek wild wolves, aurochs or goats on this band's hex. Deer cannot be domesticated." : "Seek a wild wolf pack or aurochs herd in the band's cell.";
             if (beast.LastContactTurn == Turn) return "This group needs time to respond. Try again next turn.";
             if (ActionBand.Food < 18 + Upkeep(ActionBand)) return Pace == HistoryPace.LegacySeasons ?
                 "Keep one turn of food for the band, plus 18 provisions for this encounter." :
@@ -280,7 +280,7 @@ namespace Clio.Simulation
                 if (beast.PositiveContacts >= 10)
                 {
                     beast.Domestic = true; beast.OwnerId = 0;
-                    beast.BreedName = Place(ActionBand.CellId) + (beast.Kind == BeastKind.Wolves ? " hearth dogs" : " cattle");
+                    beast.BreedName = Place(ActionBand.CellId) + (beast.Kind == BeastKind.Wolves ? " hearth dogs" : beast.Kind == BeastKind.Goats ? " goats" : " cattle");
                     beast.Hardiness = 0.5 + (1 - World.Cells[ActionBand.CellId].Temperature) * 0.4;
                     beast.Yield = 0.5 + World.Cells[ActionBand.CellId].Forage * 0.4;
                     Log("A domestic lineage emerges: " + beast.BreedName + ". Its ancestry belongs to this place.");
@@ -349,7 +349,7 @@ namespace Clio.Simulation
             foreach (Band band in Bands.Where(b => b.Population > 0).ToArray())
             {
                 if (band.Id != 0) ActIndependent(band);
-                if (SaltEnabled || WoodEnabled) { ResolveSaltHousehold(band); continue; }
+                if (SaltEnabled || WoodEnabled || LivestockEnabled) { ResolveSaltHousehold(band); continue; }
                 double passive = band.Settled ? ForageYield(band.CellId, band) * (band.Id == 0 && Known("gardens") ? 0.75 : 0.3) : 0;
                 if (Pace == HistoryPace.LegacySeasons)
                 {
@@ -394,6 +394,7 @@ namespace Clio.Simulation
                 {
                     if (Turn % 6 == 0)
                     {
+                        if (LivestockEnabled) { GrowLivestockHerd(beast); continue; }
                         beast.Count += Math.Max(1, beast.Count / 12);
                         if (Pace != HistoryPace.LegacySeasons)
                         {
@@ -427,7 +428,7 @@ namespace Clio.Simulation
         }
         private void ActIndependent(Band band)
         {
-            if (SaltEnabled || TerrainTravelEnabled || WoodEnabled) { ActSaltIndependent(band); return; }
+            if (SaltEnabled || TerrainTravelEnabled || WoodEnabled || LivestockEnabled) { ActSaltIndependent(band); return; }
             int best = World.Cells[band.CellId].Neighbors.Concat(new[] { band.CellId }).Where(n => World.Cells[n].IsLand)
                 .OrderByDescending(n => ForageYield(n, band)).First();
             band.CellId = best; band.Food += ForageYield(best, band) * 1.5; Depletion[best] = Math.Min(1, Depletion[best] + 0.18);

@@ -102,7 +102,7 @@ namespace Clio.Desktop
             EconomyForecast economy = BandEconomy.Forecast(game, game.Player);
             LedgerBudgetRow(g, "Food reserves", economy.StartingFood, 480, Art.Ink, false);
             LedgerBudgetRow(g, "Food from camp", economy.CampFood, 508, LedgerGreen, true);
-            LedgerBudgetRow(g, "Cattle produce", economy.CattleFood, 536, LedgerGreen, true);
+            LedgerBudgetRow(g, game.LivestockEnabled ? "Milk from livestock" : "Cattle produce", economy.CattleFood, 536, LedgerGreen, true);
             LedgerBudgetRow(g, "Animal care", -economy.ActualAnimalCare, 564, Art.Muted, true);
             double supplied = Math.Min(economy.Upkeep, Math.Max(0, economy.StartingFood + economy.CampFood + economy.CattleFood - economy.ActualAnimalCare));
             LedgerBudgetRow(g, supplied < economy.Upkeep ? "People supplied" : "People's needs", -supplied, 592, Art.Muted, true);
@@ -125,7 +125,7 @@ namespace Clio.Desktop
             Typography.Label(g, "III  /  Beside the hearth", new RectangleF(1186, 420, 355, 25), 13, Art.Gold, .8f);
             DomesticEconomy effects = BandEconomy.DomesticEffects(game, game.Player);
             int otherCompanions = domestic.Where(b => b.Kind != BeastKind.Wolves && b.Kind != BeastKind.Aurochs).Sum(b => b.Count);
-            Typography.Line(g, effects.Dogs + " dogs  ·  " + effects.Cattle + " cattle" + (otherCompanions > 0 ? "  ·  " + otherCompanions + " other" : ""), new RectangleF(1186, 448, 352, 25), 18, Art.Ink, TypeRole.Heading, true);
+            Typography.Line(g, effects.Dogs + " dogs  ·  " + effects.Cattle + " cattle" + (game.LivestockEnabled ? "  ·  " + effects.Goats + " goats" : otherCompanions > 0 ? "  ·  " + otherCompanions + " other" : ""), new RectangleF(1186, 448, 352, 25), 18, Art.Ink, TypeRole.Heading, true);
             if (domestic.Length == 0)
                 Typography.Draw(g, game.Rules == SimulationRules.MobileUnits ? "No domestic lineages yet. Select a moving animal group and inspect its temperament before a peaceful approach." : "No domestic lineages yet. Repeated peaceful encounters with wolves or aurochs can begin a shared life.", new RectangleF(1187, 485, 348, 68), 16, Art.Muted, TypeRole.Annotation);
             else
@@ -135,9 +135,9 @@ namespace Clio.Desktop
                 {
                     Beast herd = domestic[peopleAnimalPage * 2 + i]; float y = 484 + i * 40;
                     IdentityArt.DrawAnimal(g, herd.Kind, new RectangleF(1187, y, 30, 27), Art.Ink, true);
-                    Typography.Line(g, herd.Count + "  " + herd.BreedName, new RectangleF(1227, y - 3, 305, 25), 17, Art.Ink, TypeRole.Heading, true);
+                    Typography.Line(g, herd.Count + "  " + (game.LivestockEnabled ? LivestockEconomy.DisplayName(game, herd) : herd.BreedName), new RectangleF(1227, y - 3, 305, 25), 17, Art.Ink, TypeRole.Heading, true);
                     string benefit = DomesticLineageBenefit(herd);
-                    if (herd.Kind == BeastKind.Wolves)
+                    if (herd.Kind == BeastKind.Wolves && !game.LivestockEnabled)
                         benefit = (game.Rules == SimulationRules.MobileUnits ? "Fighting aid; household +" : "Household: up to +" + (effects.HuntingBonus * 100).ToString("0") + "pt hunts, +") + ((effects.GatheringMultiplier - 1) * 100).ToString("0") + "% gather; care " + BandEconomy.AnimalCare(game, herd).ToString("0.0") + "/turn";
                     Typography.Line(g, benefit, new RectangleF(1227, y + 19, 305, 21), 13.5f, Art.Muted, TypeRole.Annotation, true);
                 }
@@ -245,7 +245,7 @@ namespace Clio.Desktop
             if (band.Id == game.Player.Id)
             {
                 DomesticEconomy effects = BandEconomy.DomesticEffects(game, band);
-                Typography.Line(g, effects.Dogs + " dogs  \u00b7  " + effects.Cattle + " cattle", new RectangleF(1295, 681, 267, 27), 17, Art.Muted, TypeRole.Annotation);
+                Typography.Line(g, effects.Dogs + " dogs  \u00b7  " + effects.Cattle + " cattle" + (game.LivestockEnabled ? "  \u00b7  " + effects.Goats + " goats" : ""), new RectangleF(1295, 681, 267, 27), 17, Art.Muted, TypeRole.Annotation);
                 Button(g, "Open household ledger", 1295, 735, 267, 39, delegate { OpenEconomy(0); }, false, false);
             }
             else
@@ -274,7 +274,7 @@ namespace Clio.Desktop
                 Beast animal = animals[inspectorAnimalPage * 3 + i]; float y = 334 + i * 130;
                 Art.Line(g, Border, 1, 1295, y - 5, 1562, y - 5);
                 IdentityArt.DrawAnimal(g, animal.Kind, new RectangleF(1295, y + 4, 31, 28), Art.Ink, animal.Domestic);
-                Typography.Line(g, animal.Domestic ? animal.BreedName : animal.Kind.ToString(), new RectangleF(1337, y, 226, 29), 19, Art.Ink, TypeRole.Heading);
+                Typography.Line(g, game.LivestockEnabled ? LivestockEconomy.DisplayName(game, animal) : animal.Domestic ? animal.BreedName : animal.Kind.ToString(), new RectangleF(1337, y, 226, 29), 19, Art.Ink, TypeRole.Heading);
                 Typography.Line(g, animal.Count + (animal.Domestic ? " animals  /  domestic lineage" : " animals  /  wild"), new RectangleF(1338, y + 29, 224, 23), 14, Art.Muted, TypeRole.Annotation, true);
                 if (animal.Domestic)
                 {
@@ -282,7 +282,7 @@ namespace Clio.Desktop
                     Band owner = game.Bands.FirstOrDefault(b => b.Id == animal.OwnerId);
                     string detail = owner == null ? "A companion lineage" : owner.Id == game.Player.Id ? "Travels with your people" : "Companions of " + owner.Name;
                     if (animal.Kind == BeastKind.Wolves && owner != null)
-                        detail = "Gathering +" + ((BandEconomy.DomesticEffects(game, owner).GatheringMultiplier - 1) * 100).ToString("0") + "% \u00b7 care " + BandEconomy.AnimalCare(game, animal).ToString("0.0") + " / turn";
+                        detail = game.LivestockEnabled ? "Hunting only; no food or gathering bonus" : "Gathering +" + ((BandEconomy.DomesticEffects(game, owner).GatheringMultiplier - 1) * 100).ToString("0") + "% \u00b7 care " + BandEconomy.AnimalCare(game, animal).ToString("0.0") + " / turn";
                     Typography.Line(g, detail, new RectangleF(1295, y + 88, 267, 24), 14, Art.Muted, TypeRole.Annotation, true);
                 }
                 else if (animal.Kind == BeastKind.Wolves || animal.Kind == BeastKind.Aurochs)
@@ -294,7 +294,7 @@ namespace Clio.Desktop
                 else
                 {
                     Typography.Line(g, "Hunting chance  " + (BandEconomy.HuntChance(game, animal) * 100).ToString("0") + "%", new RectangleF(1295, y + 60, 267, 25), 15, Art.Gold, TypeRole.Body);
-                    Typography.Line(g, "No domestication practice is known", new RectangleF(1295, y + 89, 267, 24), 14, Art.Muted, TypeRole.Annotation, true);
+                    Typography.Line(g, game.LivestockEnabled && animal.Kind == BeastKind.Deer ? "Deer cannot be domesticated" : "No domestication practice is known", new RectangleF(1295, y + 89, 267, 24), 14, Art.Muted, TypeRole.Annotation, true);
                 }
             }
             if (animals.Length > 3) LedgerPager(g, 1295, 747, 267, inspectorAnimalPage, animals.Length, 3, delegate(int next) { inspectorAnimalPage = next; });
@@ -305,6 +305,18 @@ namespace Clio.Desktop
         {
             // Food and care are per lineage; hunting is the owning household's combined bonus.
             string care = BandEconomy.AnimalCare(game, herd).ToString("0.0");
+            if (game.LivestockEnabled)
+            {
+                if (LivestockEconomy.IsLivestock(herd)) return "+" + LivestockEconomy.MilkFood(game, herd).ToString("0.0") + " milk food · " + care + " care / turn";
+                if (herd.Kind == BeastKind.Wolves)
+                {
+                    Band dogOwner = game.Bands.FirstOrDefault(b => b.Id == herd.OwnerId);
+                    string hunting = dogOwner != null && game.CanControlBand(dogOwner.Id) ? "Band hunts +" + (BandEconomy.DomesticEffects(game, dogOwner).HuntingBonus * 100).ToString("0") +
+                        (game.Rules == SimulationRules.MobileUnits ? "% strength" : " points") : "Hunting support";
+                    return hunting + " · " + care + " care / turn";
+                }
+                if (herd.Kind == BeastKind.Deer) return "Wild deer; cannot be domesticated";
+            }
             if (herd.Kind == BeastKind.Aurochs) return "+" + BandEconomy.CattleFood(herd).ToString("0.0") + " food \u00b7 " + care + " care / turn";
             if (game.Rules == SimulationRules.MobileUnits)
             {

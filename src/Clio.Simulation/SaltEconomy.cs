@@ -168,11 +168,13 @@ namespace Clio.Simulation
             for (int action = 0; action < 2 && band.Population > 0; action++)
             {
                 double needs = Upkeep(band) + BandEconomy.DomesticEffects(this, band).AnimalCare;
-                int[] safe = World.Cells[band.CellId].Neighbors.Where(n => (TerrainTravelEnabled ? TravelPlaceKnown(band, n) : SaltEnabled ? SaltPlaceKnown(band, n) : WoodEnabled) && World.Cells[n].IsLand && World.Cells[n].Terrain != Terrain.Ice &&
+                int[] safe = World.Cells[band.CellId].Neighbors.Where(n => (TerrainTravelEnabled ? TravelPlaceKnown(band, n) : SaltEnabled ? SaltPlaceKnown(band, n) : WoodEnabled || LivestockEnabled) && World.Cells[n].IsLand && World.Cells[n].Terrain != Terrain.Ice &&
                     (!TerrainTravelEnabled || TravelRules.MoveCost(this, band, band.CellId, n) <= 2 - action) &&
                     !EncounterRules.HostileAt(this, n, band.Id)).OrderByDescending(n => ForageYield(n, band)).ThenBy(n => n).ToArray();
                 if (EncounterRules.HostileAt(this, band.CellId, band.Id) && safe.Length > 0)
                 { if (TerrainTravelEnabled) action += TravelRules.MoveCost(this, band, band.CellId, safe[0]) - 1; MoveSaltBand(band, safe[0]); continue; }
+                Beast emergencyHerd = LivestockEconomy.EmergencyHerd(this, band);
+                if (emergencyHerd != null) { ResolveSlaughter(band, emergencyHerd); continue; }
                 if (SaltEnabled && SaltEconomy.ReserveTurns(band) <= 3.25 && band.Food >= needs * 1.5)
                 {
                     if (SaltEconomy.CanGather(this, band)) { band.Salt += SaltEconomy.GatherYield(this, band); continue; }

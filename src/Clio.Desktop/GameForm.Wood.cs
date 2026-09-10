@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Drawing;
 using Clio.Simulation;
 
@@ -101,11 +101,8 @@ namespace Clio.Desktop
             Typography.Label(g, "Building a camp", new RectangleF(1065, 600, 472, 25), 12, Art.Gold, .5f);
             Typography.Draw(g, "A camp costs 1 action, 30 food and " + WoodEconomy.CampCost + " wood. It produces food each turn while the band stays. Fuel is paid separately.", new RectangleF(1065, 637, 472, 82), 19, Art.Ink, TypeRole.Body);
             Typography.Draw(g, "Without wood, you lose fire benefits; wood shortage itself does not kill people.", new RectangleF(1065, 726, 472, 42), 16, Art.Muted, TypeRole.Annotation);
-            Typography.Label(g, "Totals since wood was introduced / Your people", new RectangleF(42, 798, 1516, 26), 12, Art.Gold, .5f);
-            EconomyRow(g, 42, 834, 356, "Wood gathered", journal.Totals.WoodGathered.ToString("N1"), Art.Ink);
-            EconomyRow(g, 422, 834, 356, "Wood used as fuel", journal.Totals.WoodConsumed.ToString("N1"), Art.Ink);
-            EconomyRow(g, 802, 834, 356, "Wood used in camps", journal.Totals.CampWoodSpent.ToString("N1"), Art.Ink);
-            EconomyRow(g, 1182, 834, 376, "Food saved by fires", journal.Totals.FireFoodSaved.ToString("N1"), LedgerGreen);
+            Typography.Line(g, "Your people: gathered " + journal.Totals.WoodGathered.ToString("N1") + " wood  /  fuel " + journal.Totals.WoodConsumed.ToString("N1") + "  /  camps " + journal.Totals.CampWoodSpent.ToString("N1") + "  /  food saved " + journal.Totals.FireFoodSaved.ToString("N1"),
+                new RectangleF(42, 782, 1516, 25), 16, Art.Muted, TypeRole.Utility, true);
         }
 
         private void DrawUntrackedWood(Graphics g)

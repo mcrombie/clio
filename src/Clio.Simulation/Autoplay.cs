@@ -40,10 +40,13 @@ namespace Clio.Simulation
             Cell here = game.World.Cells[band.CellId];
             double animalCare = game.Beasts.Where(b => b.CellId == band.CellId && b.Domestic && b.OwnerId == band.Id &&
                 b.Count > 0 && b.Kind == BeastKind.Wolves).Sum(b => b.Count * 0.3);
-            if (game.Pace != HistoryPace.LegacySeasons) animalCare = BandEconomy.DomesticEffects(game, band).AnimalCare;
+            if (game.Pace != HistoryPace.LegacySeasons || game.LivestockEnabled) animalCare = BandEconomy.DomesticEffects(game, band).AnimalCare;
             double upkeep = game.Upkeep(band) + animalCare;
             double food = band.Food;
             double gathering = game.ForageYield(here.Id, band);
+            Beast emergencyHerd = LivestockEconomy.EmergencyHerd(game, band);
+            if (emergencyHerd != null && LivestockEconomy.CanSlaughter(game, band, emergencyHerd))
+                return Decide("slaughter:" + emergencyHerd.Id.ToString(CultureInfo.InvariantCulture), "Gathering cannot meet this turn's food need. Take meat from the owned herd, accepting less milk afterward.");
             int destination = BestDestination(game, gathering);
 
             // Reserve the last action for gathering when provisions are scarce.
@@ -137,6 +140,10 @@ namespace Clio.Simulation
             if (enemy != null && player.Food > needs * 1.5)
                 return Decide("attack-band:" + enemy.Id.ToString(CultureInfo.InvariantCulture), "Drive back a weaker hostile band; leave neutral peoples in peace.");
 
+            Beast emergencyHerd = LivestockEconomy.EmergencyHerd(game, player);
+            if (emergencyHerd != null && LivestockEconomy.CanSlaughter(game, player, emergencyHerd))
+                return Decide("slaughter:" + emergencyHerd.Id.ToString(CultureInfo.InvariantCulture), "Gathering cannot meet this turn's food need. Slaughter some owned livestock and preserve the remaining milk herd.");
+
             double travel = player.Population * (game.Known("routes") ? 0.08 : 0.15);
             if (game.ActionsFor(player.Id) == 2 && safe.Length > 0 && game.ForageYield(safe[0], player) - travel > gathering * (player.Settled && game.Known("gardens") ? 2.1 : 1.7) + 8 &&
                 (!game.TerrainTravelEnabled || TravelRules.MoveCost(game, player, player.CellId, safe[0]) == 1 || player.Food >= needs * 2) &&
@@ -152,20 +159,21 @@ namespace Clio.Simulation
             if ((!game.SaltEnabled || SaltEconomy.ReserveTurns(player) >= 4) && player.Population >= 90 && player.Food >= needs * 3.5 && safe.Length > 0 && game.World.Cells[player.CellId].Neighbors.All(n => game.Explored.Contains(n)))
                 return Decide("split", "Give a daughter band a safe known home and a share of the surplus.");
 
-            Beast companion = seen.Where(b => !b.Domestic && b.Kind != BeastKind.Dragon &&
+            Beast companion = seen.Where(b => !b.Domestic && b.Kind != BeastKind.Dragon && LivestockEconomy.CanDomesticate(game, b) &&
                 !game.Beasts.Any(pet => pet.Domestic && pet.OwnerId == player.Id && pet.Count > 0 && pet.Kind == b.Kind))
                 .Where(b => EncounterRules.Outlook(game, player.Id, UnitKind.Animal, b.Id).CanBefriend && EncounterRules.Animal(game, b).FriendChance >= 0.4 &&
                     EncounterRules.Animal(game, b).Strength < people.Strength * 1.9 && player.Food >= needs * 3 + EncounterRules.Animal(game, b).OfferingCost + (b.CellId == player.CellId ? 0 : travel))
                 .OrderByDescending(b => b.PositiveContacts).ThenBy(b => b.CellId == player.CellId ? 0 : 1).ThenBy(b => b.Id).FirstOrDefault();
             if (companion != null)
                 return Decide("befriend-animal:" + companion.Id.ToString(CultureInfo.InvariantCulture), "Follow a manageable moving group and build trust with that same lineage.");
+            double huntingStrength = game.LivestockEnabled ? EncounterRules.HuntingStrength(game, player) : people.Strength;
             Beast prey = seen.Where(b => !b.Domestic && b.PositiveContacts == 0 && b.Kind != BeastKind.Dragon &&
-                    EncounterRules.Outlook(game, player.Id, UnitKind.Animal, b.Id).CanAttack && EncounterRules.Animal(game, b).Strength < people.Strength * 0.85)
+                    EncounterRules.Outlook(game, player.Id, UnitKind.Animal, b.Id).CanAttack && EncounterRules.Animal(game, b).Strength < huntingStrength * 0.85)
                 .OrderBy(b => b.Id).FirstOrDefault(b =>
                 {
                     UnitProfile target = EncounterRules.Animal(game, b);
-                    double kills = Math.Min(b.Count, Math.Floor((people.Strength * 0.42 + target.Wounds) / EncounterRules.HealthPerAnimal(b.Kind)));
-                    double expected = kills * (b.Kind == BeastKind.Mammoths ? 85 : b.Kind == BeastKind.Aurochs ? 38 : b.Kind == BeastKind.Wolves ? 12 : 28);
+                    double kills = Math.Min(b.Count, Math.Floor((huntingStrength * 0.42 + target.Wounds) / EncounterRules.HealthPerAnimal(b.Kind)));
+                    double expected = kills * (b.Kind == BeastKind.Mammoths ? 85 : b.Kind == BeastKind.Aurochs ? 38 : b.Kind == BeastKind.Wolves ? 12 : b.Kind == BeastKind.Goats ? 8 : 28);
                     return expected - (b.CellId == player.CellId ? 0 : travel) > gathering * 1.25;
                 });
             if (prey != null && player.Food < needs * 5)
@@ -178,8 +186,8 @@ namespace Clio.Simulation
         {
             if (prey == null || prey.Kind == BeastKind.Wolves || prey.Kind == BeastKind.Dragon || prey.PositiveContacts > 0) return false;
             double chance = game.Known("tracking") ? 0.9 : 0.8;
-            if (game.Pace != HistoryPace.LegacySeasons) chance = BandEconomy.HuntChance(game, prey);
-            double expected = Math.Min(prey.Count, 3) * (prey.Kind == BeastKind.Mammoths ? 75 : 38) * chance;
+            if (game.Pace != HistoryPace.LegacySeasons || game.LivestockEnabled) chance = BandEconomy.HuntChance(game, prey);
+            double expected = Math.Min(prey.Count, 3) * (prey.Kind == BeastKind.Mammoths ? 75 : prey.Kind == BeastKind.Goats ? 8 : 38) * chance;
             return expected > gathering * 1.35;
         }
 

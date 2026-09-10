@@ -413,18 +413,25 @@ namespace Clio.Desktop
         {
             if (animal == null) { DrawMapLostCard(g, true); return; }
             bool own = animal.Domestic && game.CanControlBand(animal.OwnerId), encounters = game.Rules == SimulationRules.MobileUnits;
+            bool livestock = game.LivestockEnabled && animal.Domestic && LivestockEconomy.IsLivestock(animal);
+            bool ownDogs = game.LivestockEnabled && own && animal.Kind == BeastKind.Wolves;
             UnitProfile unit = encounters ? EncounterRules.Animal(game, animal) : null;
-            MapCardHeading(g, own ? "Your companions" : animal.Domestic ? "Another people's companions" : "A wild animal group", AnimalUnitName(animal), animal.Kind + "  ·  Group " + animal.Id);
+            MapCardHeading(g, own ? livestock ? "Your livestock" : "Your companions" : animal.Domestic ? "Another people's companions" : "A wild animal group", AnimalUnitName(animal), LivestockEconomy.DisplayName(game, animal) + "  ·  Group " + animal.Id);
             MapCardMetric(g, 1213, "Animals", animal.Count.ToString("N0"), Art.Ink);
             MapCardMetric(g, 1384, "Health", encounters ? unit.CurrentHealth + " / " + unit.MaxHealth : "—", LedgerGreen);
-            MapCardPair(g, "Temperament", encounters ? UnitTemperament(unit) : animal.Domestic ? "Domestic" : "Wild", 452, Art.Ink);
-            MapCardPair(g, "Fighting strength", encounters ? unit.Strength.ToString("0.0") : "Not recorded", 482, Art.Gold);
+            MapCardPair(g, livestock ? "Milk / turn" : "Temperament", livestock ? "+" + LivestockEconomy.MilkFood(game, animal).ToString("0.0") + " food" : encounters ? UnitTemperament(unit) : animal.Domestic ? "Domestic" : "Wild", 452, livestock ? LedgerGreen : Art.Ink);
+            Band dogOwner = ownDogs ? game.Bands.FirstOrDefault(b => b.Id == animal.OwnerId) : null;
+            string huntingAid = dogOwner == null ? "0" : (BandEconomy.DomesticEffects(game, dogOwner).HuntingBonus * 100).ToString("0");
+            MapCardPair(g, livestock ? "Next slaughter" : ownDogs ? "Band hunting support" : "Fighting strength", livestock ? "+" + LivestockEconomy.MeatFood(game, animal).ToString("0.0") + " food" : ownDogs ? "+" + huntingAid + (encounters ? "% strength" : " points") : encounters ? unit.Strength.ToString("0.0") : "Not recorded", 482, Art.Gold);
             if (animal.Domestic)
                 MapCardPair(g, "Care / turn", BandEconomy.AnimalCare(game, animal).ToString("0.0"), 512, Art.Ink);
             else if (encounters)
-                MapCardPair(g, "Trust / peaceful chance", animal.PositiveContacts + "/" + unit.TrustThreshold + "  ·  " + (unit.FriendChance * 100).ToString("0.#") + "%", 512, Art.Gold);
+                MapCardPair(g, LivestockEconomy.CanDomesticate(game, animal) ? "Trust / peaceful chance" : "Domestication", LivestockEconomy.CanDomesticate(game, animal) ? animal.PositiveContacts + "/" + unit.TrustThreshold + "  ·  " + (unit.FriendChance * 100).ToString("0.#") + "%" : "Not possible", 512, Art.Gold);
             string account = animal.Domestic ? DomesticLineageBenefit(animal) + ". " + (own ? "Travels with your household." : "Belongs to another people.") :
                 encounters ? unit.Hostile ? "Hostile: an approach can cause severe injury. Review the offering and risks before choosing." : "An offering may build trust or cause injury. Review the cost and risks before approaching." : "An earlier story. Enable moving encounters in Map views for targeted attack and befriending.";
+            if (livestock) account = own ? LivestockHarvestSummary(animal) : "Milk and meat belong to this herd's owner. More living animals produce more milk; slaughter reduces future output.";
+            else if (ownDogs) account = "Dogs support this band's attacks on wild animals. They do not produce food, help gathering or add strength against other peoples.";
+            else if (game.LivestockEnabled && animal.Kind == BeastKind.Deer) account = "Deer cannot be domesticated. Hunt this group or leave it wild.";
             Typography.Draw(g, account, new RectangleF(1213, 551, 331, 70), 16, Art.Muted, TypeRole.Annotation);
             int cellId = animal.CellId, id = animal.Id;
             if (own)
@@ -440,8 +447,59 @@ namespace Clio.Desktop
                 Button(g, "Review encounter", 1213, 625, 331, 31, delegate { OpenMapCardEncounter(UnitKind.Animal, id); }, true, false);
                 MapTip("Review attack or peaceful approach, costs and injury risks. Opening the review spends no action.");
             }
-            Button(g, "View this place", 1213, 666, 331, 31, delegate { OpenMapCardPlace(cellId); }, false, false);
-            MapTip("Read the named hex beneath this group, including terrain and gathering conditions.");
+            if (own && livestock) DrawLivestockHarvestButton(g, animal, new RectangleF(1213, 666, 331, 31));
+            else
+            {
+                Button(g, "View this place", 1213, 666, 331, 31, delegate { OpenMapCardPlace(cellId); }, false, false);
+                MapTip("Read the named hex beneath this group, including terrain and gathering conditions.");
+            }
+        }
+
+        private string LivestockHarvestSummary(Beast herd)
+        {
+            int killed = LivestockEconomy.SlaughterCount(game, herd);
+            double milk = LivestockEconomy.MilkFood(game, herd);
+            double after = herd.Count <= 0 ? 0 : milk * (herd.Count - killed) / herd.Count;
+            return "Slaughter " + killed + " of " + herd.Count + " for +" + LivestockEconomy.MeatFood(game, herd).ToString("0.0") +
+                " food. Milk falls from " + milk.ToString("0.0") + " to " + after.ToString("0.0") + " per turn. Uses 1 action from this herd's owner.";
+        }
+
+        private string LivestockHarvestReason(Beast herd)
+        {
+            if (SemiautomaticMode) return "In Semiautomatic, choose a herd decision or switch to Manual to slaughter this group directly.";
+            Band owner = game.Bands.FirstOrDefault(b => b.Id == herd.OwnerId);
+            if (!game.LivestockEnabled || !LivestockEconomy.IsLivestock(herd)) return "This group is not livestock.";
+            if (game.IsOver || herd.Count <= 0 || owner == null || owner.Population <= 0) return "This herd has no living owner available.";
+            if (!game.CanControlBand(owner.Id)) return "This herd belongs to another people.";
+            if (owner.CellId != herd.CellId) return "The owning band must share this herd's hex.";
+            if (game.ActionsFor(owner.Id) <= 0) return "The owning band has no actions left this turn.";
+            return "";
+        }
+
+        private void DrawLivestockHarvestButton(Graphics g, Beast herd, RectangleF bounds)
+        {
+            int id = herd.Id;
+            Band owner = game.Bands.FirstOrDefault(b => b.Id == herd.OwnerId);
+            string reason = LivestockHarvestReason(herd);
+            bool enabled = reason.Length == 0 && LivestockEconomy.CanSlaughter(game, owner, herd);
+            string label = "Slaughter " + LivestockEconomy.SlaughterCount(game, herd) + " · +" + LivestockEconomy.MeatFood(game, herd).ToString("0") + " food";
+            EncounterAction(g, label, bounds, enabled, delegate { HarvestLivestock(id); }, enabled);
+            if (!enabled) buttons.Add(new UiButton(bounds, delegate { status = reason.Length > 0 ? reason : "This herd cannot be slaughtered now."; Invalidate(); }));
+            MapTip(LivestockHarvestSummary(herd) + (owner == null ? "" : " Owner: " + owner.Name + ".") + (reason.Length == 0 ? " Applies immediately." : "\n" + reason));
+        }
+
+        private void HarvestLivestock(int id)
+        {
+            if (!RequireManualOrders()) return;
+            Beast herd = game.Beasts.FirstOrDefault(b => b.Id == id && b.Count > 0);
+            if (herd == null || !UnitVisible(herd.CellId)) return;
+            string reason = LivestockHarvestReason(herd);
+            Band owner = game.Bands.FirstOrDefault(b => b.Id == herd.OwnerId);
+            if (reason.Length > 0 || !LivestockEconomy.CanSlaughter(game, owner, herd))
+            { status = reason.Length > 0 ? reason : "This herd cannot be slaughtered now."; Invalidate(); return; }
+            ArmMapCommandBand(owner.Id);
+            Command("slaughter:" + id);
+            if (herd.Count > 0 && !BlockingSheet) { SelectAnimal(herd); page = 0; ShowMapSelection(); }
         }
 
         private void DrawMapLostCard(Graphics g, bool unit)

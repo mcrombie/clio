@@ -5,15 +5,17 @@ namespace Clio.Simulation
 {
     public sealed class DomesticEconomy
     {
-        public int Dogs, Cattle, OtherCompanions;
+        public int Dogs, Cattle, Goats, OtherCompanions;
         public double HuntingBonus, GatheringMultiplier = 1;
         public double AnimalCare, DogCare, CattleCare, OtherCare, CattleFood;
+        public double MilkFood, CattleMilk, GoatMilk, GoatCare;
     }
 
     public sealed class EconomyForecast
     {
         public int BandId, Turn, HungerLosses, ExposureLosses, Births, EndingPopulation;
         public double StartingFood, CampFood, CattleFood, AnimalCare, ActualAnimalCare, Upkeep;
+        public double MilkFood;
         public double FoodBeforeSpoilage, Spoilage, EndingFood, NetFood;
         public double StartingSalt, SaltNeed, SaltConsumed, EndingSalt;
         public int SaltLosses, EndingSaltShortageTurns;
@@ -31,6 +33,9 @@ namespace Clio.Simulation
         {
             if (game == null) throw new ArgumentNullException("game");
             if (herd == null || !herd.Domestic || herd.Count <= 0) return 0;
+            if (game.LivestockEnabled)
+                return herd.Count * (herd.Kind == BeastKind.Aurochs ? .06 : herd.Kind == BeastKind.Goats ? .04 : herd.Kind == BeastKind.Wolves ? .3 :
+                    herd.Kind == BeastKind.Deer ? .05 : herd.Kind == BeastKind.Mammoths ? .65 : herd.Kind == BeastKind.Dragon ? 8 : .3);
             if (game.Rules == SimulationRules.MobileUnits)
                 return herd.Count * (herd.Kind == BeastKind.Deer ? 0.05 : herd.Kind == BeastKind.Mammoths ? 0.65 : herd.Kind == BeastKind.Dragon ? 8 : herd.Kind == BeastKind.Aurochs ? 0.06 : 0.3);
             return herd.Kind == BeastKind.Aurochs ? (game.Pace == HistoryPace.LegacySeasons ? 0 : herd.Count * 0.06) : herd.Count * 0.3;
@@ -40,6 +45,7 @@ namespace Clio.Simulation
         {
             if (game == null) throw new ArgumentNullException("game");
             if (band == null) throw new ArgumentNullException("band");
+            if (game.LivestockEnabled) return LivestockEconomy.Effects(game, band);
             DomesticEconomy result = new DomesticEconomy();
             foreach (Beast herd in game.Beasts.Where(b => b.Domestic && b.OwnerId == band.Id && b.Count > 0))
             {
@@ -101,7 +107,7 @@ namespace Clio.Simulation
             double chance = prey.Kind == BeastKind.Dragon ? 0.12 : prey.Kind == BeastKind.Wolves ? 0.6 : 0.8;
             if (game.Known("tracking")) chance += 0.1;
             chance += DomesticEffects(game, game.Player).HuntingBonus;
-            return game.Pace == HistoryPace.LegacySeasons ? chance : Math.Min(0.97, chance);
+            return game.Pace == HistoryPace.LegacySeasons && !game.LivestockEnabled ? chance : Math.Min(0.97, chance);
         }
 
         public static double CampFood(Game game, Band band)
@@ -118,7 +124,7 @@ namespace Clio.Simulation
             if (band == null) throw new ArgumentNullException("band");
             DomesticEconomy domestic = DomesticEffects(game, band);
             EconomyForecast result = new EconomyForecast { BandId = band.Id, Turn = game.Turn,
-                StartingFood = band.Food, CampFood = CampFood(game, band), CattleFood = domestic.CattleFood,
+                StartingFood = band.Food, CampFood = CampFood(game, band), CattleFood = domestic.CattleFood, MilkFood = domestic.MilkFood,
                 AnimalCare = domestic.AnimalCare, Upkeep = game.Upkeep(band), EndingPopulation = band.Population };
             SaltEconomy.Forecast(game, band, result);
             WoodEconomy.Forecast(game, band, result);
@@ -127,7 +133,7 @@ namespace Clio.Simulation
 
             double food = band.Food;
             double passive = result.CampFood;
-            if (game.Pace == HistoryPace.LegacySeasons && game.Rules == SimulationRules.Classic)
+            if (game.Pace == HistoryPace.LegacySeasons && game.Rules == SimulationRules.Classic && !game.LivestockEnabled)
             {
                 // Preserve the legacy order of floating-point additions exactly.
                 foreach (Beast herd in game.Beasts.Where(b => b.Domestic && b.OwnerId == band.Id && b.Count > 0))

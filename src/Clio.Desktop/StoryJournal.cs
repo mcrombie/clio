@@ -8,7 +8,7 @@ using Clio.Simulation;
 namespace Clio.Desktop
 {
     internal enum StoryNoticeKind
-    { Introduction, Migration, Camp, Hunt, AnimalEncounter, Domestication, Hunger, Exposure, Loss, Growth, Knowledge, Fission, Conditions, Contact, Combat, AnimalMovement, Diplomacy, PlaceNames, Salt, Tribe, Travel, Gathering, Wood }
+    { Introduction, Migration, Camp, Hunt, AnimalEncounter, Domestication, Hunger, Exposure, Loss, Growth, Knowledge, Fission, Conditions, Contact, Combat, AnimalMovement, Diplomacy, PlaceNames, Salt, Tribe, Travel, Gathering, Wood, Livestock }
 
     internal sealed class StoryNotice
     {
@@ -66,6 +66,8 @@ namespace Clio.Desktop
         public double GatheringFoodSpent, GatheringFoodGiven, GatheringSaltGiven;
         public int WoodGatherActions;
         public double WoodGathered, WoodConsumed, CampWoodSpent, FireFoodSaved, WoodAllocated, WoodShared, WoodLost;
+        public double MilkProduced, LivestockMeatProduced;
+        public int LivestockSlaughtered, SlaughterActions;
     }
 
     internal sealed class JournalAnimal
@@ -87,6 +89,7 @@ namespace Clio.Desktop
         internal readonly double StartingFood, CampFood, CattleFood, ActualAnimalCare, Upkeep, Spoilage, EndingFood;
         internal readonly double StartingSalt, SaltConsumed, EndingSalt;
         internal readonly double WoodConsumed, FireFoodSaved;
+        internal readonly double MilkFood;
         internal readonly int EndingSaltShortageTurns;
         internal JournalReceipt(EconomyForecast forecast)
         {
@@ -97,6 +100,7 @@ namespace Clio.Desktop
             SaltConsumed = forecast.SaltConsumed; EndingSalt = forecast.EndingSalt;
             EndingSaltShortageTurns = forecast.EndingSaltShortageTurns;
             WoodConsumed = forecast.WoodConsumed; FireFoodSaved = forecast.FireFoodSaved;
+            MilkFood = forecast.MilkFood;
         }
     }
 
@@ -121,6 +125,7 @@ namespace Clio.Desktop
         internal readonly JournalReceipt Receipt;
         internal readonly bool SaltEnabled;
         internal readonly bool WoodEnabled;
+        internal readonly bool LivestockEnabled;
         internal readonly double Salt, SaltReserve;
         internal readonly int SaltShortageTurns;
         internal readonly ReadOnlyCollection<int> SaltSources;
@@ -149,6 +154,7 @@ namespace Clio.Desktop
             Receipt = new JournalReceipt(BandEconomy.Forecast(game, game.Player));
             SaltEnabled = game.SaltEnabled; Salt = game.Player.Salt; SaltReserve = SaltEconomy.ReserveTurns(game.Player);
             WoodEnabled = game.WoodEnabled;
+            LivestockEnabled = game.LivestockEnabled;
             SaltShortageTurns = game.Player.SaltShortageTurns;
             SaltSources = new ReadOnlyCollection<int>(SaltEconomy.KnownSources(game).ToArray());
             TribesEnabled = game.TribesEnabled; TribeEventCount = game.TribeEvents.Count;
@@ -215,6 +221,7 @@ namespace Clio.Desktop
             if (command == null) throw new ArgumentNullException("command");
             if (game.Seed != before.Seed || game.Pace != before.Pace || game.Turn < before.Turn)
                 throw new ArgumentException("The journal snapshot belongs to a different story.", "before");
+            if (!before.LivestockEnabled && game.LivestockEnabled) return RecordLivestockEnabled(game, before);
             if (!before.WoodEnabled && game.WoodEnabled)
             {
                 int previous = Notices.Count; Totals.Commands++;
@@ -292,6 +299,7 @@ namespace Clio.Desktop
             RecordPlaceKnowledge(game, before);
             RecordSalt(game, before, command, ended, salted);
             RecordWood(game, before, command, ended);
+            RecordLivestockAction(game, before, command, ended);
             RecordContacts(game);
             List<StoryNotice> added = Notices.Skip(first).ToList();
             LastCommandNotices = new ReadOnlyCollection<StoryNotice>(added.ToArray());
@@ -317,6 +325,7 @@ namespace Clio.Desktop
                 Totals.HungerDeaths += receipt.HungerLosses; Totals.ExposureDeaths += receipt.ExposureLosses;
                 Totals.SaltDeaths += receipt.SaltLosses; Totals.SaltConsumed += receipt.SaltConsumed;
                 Totals.CampFoodProduced += receipt.CampFood; Totals.CattleFoodProduced += receipt.CattleFood;
+                if (game.LivestockEnabled) Totals.MilkProduced += receipt.MilkFood;
                 Totals.AnimalCarePaid += receipt.ActualAnimalCare; Totals.FoodSpoiled += receipt.Spoilage;
                 double consumed = Math.Min(receipt.Upkeep, Math.Max(0, receipt.StartingFood + receipt.CampFood + receipt.CattleFood - receipt.ActualAnimalCare));
                 Totals.FoodConsumed += consumed;
@@ -547,8 +556,15 @@ namespace Clio.Desktop
             foreach (Milestone milestone in game.Knowledge.Where(k => k.Known && !before.Knowledge.Contains(k.Id)))
             {
                 Totals.Discoveries++;
+                string effect = KnowledgeEffect(milestone.Id);
+                if (game.LivestockEnabled && milestone.Id == "dogs")
+                    effect = "Your people have learned to establish dogs from wolves. Dogs improve " +
+                        (game.Rules == SimulationRules.MobileUnits ? "strength when attacking animals" : "hunting chances") +
+                        " and need food for care; they do not produce food or improve gathering.";
+                else if (game.LivestockEnabled && milestone.Id == "herds")
+                    effect = "Your people have learned to keep livestock. Cattle and goats provide milk in proportion to herd size; slaughter provides meat while reducing future milk and care.";
                 Add(game, StoryNoticeKind.Knowledge, milestone.Name, "Remembered practice becomes knowledge shared by your people.",
-                    KnowledgeEffect(milestone.Id), milestone.Description, milestone.Id != "dogs" && milestone.Id != "herds", null);
+                    effect, milestone.Description, milestone.Id != "dogs" && milestone.Id != "herds", null);
             }
         }
 
@@ -559,6 +575,7 @@ namespace Clio.Desktop
             {
                 if (!foundedDomesticGroups.Add(animal.Id)) continue;
                 Totals.DomesticGroupsFounded++;
+                if (game.LivestockEnabled) { RecordLivestockDomestication(game, game.Player, animal); continue; }
                 DomesticEconomy effects = BandEconomy.DomesticEffects(game, game.Player);
                 string name = String.IsNullOrEmpty(animal.BreedName) ? AnimalName(animal.Kind) : animal.BreedName;
                 List<string> impact = new List<string>();
@@ -659,7 +676,7 @@ namespace Clio.Desktop
         private void Add(Game game, StoryNoticeKind kind, string title, string body, string impact, string advice, bool important, BeastKind? animal, int cell = -1)
         { Notices.Add(new StoryNotice(nextId++, game.Turn, cell < 0 ? game.Player.CellId : cell, kind, Clio.Desktop.Timeline.Text(game, title), Clio.Desktop.Timeline.Text(game, body), Clio.Desktop.Timeline.Text(game, impact), Clio.Desktop.Timeline.Text(game, advice), important, animal)); }
         private static string AnimalName(BeastKind kind)
-        { return kind == BeastKind.Aurochs ? "Aurochs" : kind == BeastKind.Wolves ? "Wolves" : kind == BeastKind.Mammoths ? "Mammoths" : kind == BeastKind.Deer ? "Deer" : "Dragon"; }
+        { return kind == BeastKind.Aurochs ? "Aurochs" : kind == BeastKind.Wolves ? "Wolves" : kind == BeastKind.Mammoths ? "Mammoths" : kind == BeastKind.Deer ? "Deer" : kind == BeastKind.Goats ? "Goats" : "Dragon"; }
         private static string Number(double number) { return number.ToString("0.#", CultureInfo.InvariantCulture); }
         private static string KnowledgeEffect(string id)
         {

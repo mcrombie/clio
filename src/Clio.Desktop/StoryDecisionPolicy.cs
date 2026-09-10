@@ -6,7 +6,7 @@ using Clio.Simulation;
 
 namespace Clio.Desktop
 {
-    internal enum StoryDirective { Provision, SeekSalt, Explore, Reunite, Settle, Divide, Befriend, Defend, GatherWood }
+    internal enum StoryDirective { Provision, SeekSalt, Explore, Reunite, Settle, Divide, Befriend, Defend, GatherWood, HarvestMeat }
 
     internal sealed class StoryOption
     {
@@ -48,12 +48,19 @@ namespace Clio.Desktop
                 .OrderByDescending(b => game.TribeStatus(b.Id).TurnsAway).ThenBy(b => b.Id).FirstOrDefault() : null;
 
             if (FoodTurns(game, hungry) < 1.4)
+            {
+                List<StoryOption> foodOptions = new List<StoryOption> {
+                    Option(StoryDirective.Provision, "Gather food", "Make food gathering the priority.", "Gather repeatedly; move to richer known ground when necessary. Gathering builds reserves but depletes the land."),
+                    Option(StoryDirective.Explore, "Find better land", "Feed hungry bands first, then explore.", "Gather first if hunger is imminent, then move toward unexplored areas. Travel costs food and actions; richer ground is not guaranteed.")
+                };
+                Beast herd = OwnLivestock(game, hungry);
+                if (herd != null) foodOptions.Add(MeatOption());
                 return Event("hunger:" + hungry.Id, "Food is running low", hungry,
                     hungry.Name + " has " + Amount(hungry.Food) + " food and needs about " + Amount(Needs(game, hungry)) +
-                    " each turn. The economic adviser recommends gathering now. The cultural adviser suggests finding fresh ground if local supplies are depleted.",
-                    "leaf", CounsellorId.Stores, true,
-                    Option(StoryDirective.Provision, "Gather food", "Make food gathering the priority.", "Gather repeatedly; move to richer known ground when necessary. Gathering builds reserves but depletes the land."),
-                    Option(StoryDirective.Explore, "Find better land", "Feed hungry bands first, then explore.", "Gather first if hunger is imminent, then move toward unexplored areas. Travel costs food and actions; richer ground is not guaranteed."));
+                    " each turn. The economic adviser recommends gathering now. The cultural adviser suggests finding fresh ground if local supplies are depleted." +
+                    (herd == null ? "" : " The band also owns livestock: taking meat would provide food now, but leave fewer animals producing milk."),
+                    "leaf", CounsellorId.Stores, true, foodOptions.ToArray());
+            }
 
             if (salt != null && SaltEconomy.ReserveTurns(salt) < 2.5)
             {
@@ -103,6 +110,18 @@ namespace Clio.Desktop
 
             string campCost = game.WoodEnabled ? "30 food, 10 wood and one action" : "30 food and one action";
             List<StoryEvent> possibilities = new List<StoryEvent>();
+            Band herder = bands.FirstOrDefault(b => FoodTurns(game, b) < 3 && OwnLivestock(game, b) != null);
+            if (herder != null)
+            {
+                Beast herd = OwnLivestock(game, herder);
+                possibilities.Add(Event("livestock:" + herd.Id, "Milk tomorrow or meat today?", herder,
+                    herder.Name + " has " + herd.Count + " " + LivestockEconomy.DisplayName(game, herd).ToLowerInvariant() +
+                    " producing " + Amount(LivestockEconomy.MilkFood(game, herd)) + " food from milk each turn. " +
+                    "The economic adviser would keep the herd for its regular output. The military adviser favors meat supplies for the next journey. Slaughtering animals reduces future milk production.",
+                    "camp", CounsellorId.Stores, false,
+                    Option(StoryDirective.Provision, "Keep the herd for milk", "Gather food while the herd keeps producing.", "Milk enters food reserves at turn end. Larger herds produce more and need more care. No livestock is deliberately slaughtered under this priority."),
+                    MeatOption()));
+            }
             Band companionBand = bands.FirstOrDefault(b => BefriendTarget(game, b, false) != null);
             if (companionBand != null)
             {
@@ -170,6 +189,12 @@ namespace Clio.Desktop
                     .ThenByDescending(n => game.ForageYield(n, band)).ThenBy(n => n).DefaultIfEmpty(-1).First();
                 if (refuge >= 0 && band.Food >= TravelFood(game, band) + Needs(game, band))
                     return Move(refuge, "Keep the household alive by withdrawing from a stronger threat.");
+            }
+            if (directive == StoryDirective.HarvestMeat && food < 3)
+            {
+                Beast herd = OwnLivestock(game, band);
+                if (herd != null && LivestockEconomy.CanSlaughter(game, band, herd))
+                    return Decision("slaughter:" + herd.Id.ToString(CultureInfo.InvariantCulture), "Take meat from owned livestock to rebuild food reserves; fewer animals will remain for milk.");
             }
             if (food < 1.35) return Provision(game, band, 1.8);
             if (game.SaltEnabled && SaltEconomy.ReserveTurns(band) < 0.6)
@@ -330,11 +355,24 @@ namespace Clio.Desktop
         private static Beast BefriendTarget(Game game, Band band, bool legalNow)
         {
             double strength = EncounterRules.Band(game, band).Strength;
-            return NearbyAnimals(game, band).Where(a => !a.Domestic && a.Kind != BeastKind.Dragon &&
+            return NearbyAnimals(game, band).Where(a => !a.Domestic && a.Kind != BeastKind.Dragon && LivestockEconomy.CanDomesticate(game, a) &&
                 EncounterRules.Animal(game, a).FriendChance >= .4 && EncounterRules.Animal(game, a).Strength < strength * 1.5 &&
                 !game.Beasts.Any(pet => pet.Domestic && pet.OwnerId == band.Id && pet.Count > 0 && pet.Kind == a.Kind) &&
                 (!legalNow || EncounterRules.Outlook(game, band.Id, UnitKind.Animal, a.Id).CanBefriend))
                 .OrderByDescending(a => a.PositiveContacts).ThenBy(a => a.Id).FirstOrDefault();
+        }
+
+        private static Beast OwnLivestock(Game game, Band band)
+        {
+            if (!game.LivestockEnabled) return null;
+            return game.Beasts.Where(a => a.Domestic && a.OwnerId == band.Id && a.CellId == band.CellId && a.Count > 0 &&
+                LivestockEconomy.IsLivestock(a)).OrderByDescending(a => LivestockEconomy.MeatFood(game, a)).ThenBy(a => a.Id).FirstOrDefault();
+        }
+
+        private static StoryOption MeatOption()
+        {
+            return Option(StoryDirective.HarvestMeat, "Use the herd for meat", "Trade part of your herd for immediate food.",
+                "Bands with low food slaughter 10% of a cattle or goat herd per action, at least one animal. Meat enters reserves immediately. Milk output and herd size fall; bands stop slaughtering once they have three turns of food.");
         }
 
         private static bool CanDivide(Game game, Band band)

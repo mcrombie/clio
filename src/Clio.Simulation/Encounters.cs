@@ -8,7 +8,7 @@ namespace Clio.Simulation
 {
     public enum SimulationRules { Classic, MobileUnits }
     public enum UnitKind { Band, Animal }
-    public enum EncounterKind { Enabled, Move, Attack, Befriend, Retreat, Recovery, Release }
+    public enum EncounterKind { Enabled, Move, Attack, Befriend, Retreat, Recovery, Release, Slaughter }
 
     public sealed class UnitProfile
     {
@@ -117,7 +117,7 @@ namespace Clio.Simulation
     public static class EncounterRules
     {
         public static int HealthPerAnimal(BeastKind kind)
-        { return kind == BeastKind.Dragon ? 320 : kind == BeastKind.Mammoths ? 75 : kind == BeastKind.Aurochs ? 28 : kind == BeastKind.Wolves ? 14 : 8; }
+        { return kind == BeastKind.Dragon ? 320 : kind == BeastKind.Mammoths ? 75 : kind == BeastKind.Aurochs ? 28 : kind == BeastKind.Wolves ? 14 : kind == BeastKind.Goats ? 10 : 8; }
         public static bool BandsHostile(Game game, int first, int second)
         {
             if (first == second || game.Rules != SimulationRules.MobileUnits) return false;
@@ -132,11 +132,16 @@ namespace Clio.Simulation
             int wounds = state == null ? 0 : Math.Min(state.Wounds, Math.Max(0, band.Population * 10));
             double vigor = band.Population <= 0 ? 0 : Math.Sqrt(Math.Max(0, 1 - wounds / (band.Population * 10.0)));
             double companions = game.Rules == SimulationRules.MobileUnits ? game.Beasts.Where(b => b.Domestic && b.OwnerId == band.Id && b.Count > 0)
-                .Sum(b => b.Kind == BeastKind.Wolves ? Math.Min(b.Count, 16) * 0.45 : b.Kind == BeastKind.Mammoths ? Math.Min(b.Count, 4) * 3 : b.Kind == BeastKind.Dragon ? Math.Min(b.Count, 1) * 35 : 0) : 0;
+                .Sum(b => b.Kind == BeastKind.Wolves ? (game.LivestockEnabled ? 0 : Math.Min(b.Count, 16) * 0.45) : b.Kind == BeastKind.Mammoths ? Math.Min(b.Count, 4) * 3 : b.Kind == BeastKind.Dragon ? Math.Min(b.Count, 1) * 35 : 0) : 0;
             double strength = (band.Population * 0.8 * (0.55 + band.Cohesion * 0.45) + companions) * vigor;
             bool hostile = BandsHostile(game, band.Id, game.Player.Id);
             return new UnitProfile(UnitKind.Band, band.Id, band.CellId, band.Population, wounds, 10, strength, hostile,
                 hostile ? "Hostile" : "Neutral", 0, 0, 0, "People can share neutral ground. Attacking creates lasting hostility; wounds weaken a band until it recovers.");
+        }
+        public static double HuntingStrength(Game game, Band band)
+        {
+            double strength = Band(game, band).Strength;
+            return game.LivestockEnabled ? strength * (1 + BandEconomy.DomesticEffects(game, band).HuntingBonus) : strength;
         }
         public static UnitProfile Animal(Game game, Beast animal)
         {
@@ -146,11 +151,11 @@ namespace Clio.Simulation
             bool naturalHostility = animal.Kind == BeastKind.Dragon || animal.Kind == BeastKind.Wolves && variation % 5 == 0 || animal.Kind == BeastKind.Aurochs && variation % 11 == 0;
             bool hostile = animal.Count > 0 && (animal.Domestic ? BandsHostile(game, animal.OwnerId, game.Player.Id) :
                 state != null && state.HostileUntil >= game.Turn || naturalHostility && animal.PositiveContacts < 3);
-            double power = animal.Kind == BeastKind.Dragon ? 95 : animal.Kind == BeastKind.Mammoths ? 5 : animal.Kind == BeastKind.Aurochs ? 2.2 : animal.Kind == BeastKind.Wolves ? 2.1 : 0.65;
+            double power = animal.Kind == BeastKind.Dragon ? 95 : animal.Kind == BeastKind.Mammoths ? 5 : animal.Kind == BeastKind.Aurochs ? 2.2 : animal.Kind == BeastKind.Wolves ? 2.1 : animal.Kind == BeastKind.Goats ? .75 : 0.65;
             double vigor = animal.Count <= 0 ? 0 : Math.Sqrt(Math.Max(0, 1 - wounds / (animal.Count * (double)health)));
-            double chance = animal.Kind == BeastKind.Dragon ? 0.006 : animal.Kind == BeastKind.Mammoths ? 0.28 : animal.Kind == BeastKind.Aurochs ? 0.56 : animal.Kind == BeastKind.Wolves ? 0.66 : 0.78;
+            double chance = animal.Kind == BeastKind.Dragon ? 0.006 : animal.Kind == BeastKind.Mammoths ? 0.28 : animal.Kind == BeastKind.Aurochs ? 0.56 : animal.Kind == BeastKind.Wolves ? 0.66 : animal.Kind == BeastKind.Goats ? .75 : 0.78;
             int threshold = animal.Kind == BeastKind.Dragon ? 40 : animal.Kind == BeastKind.Mammoths ? 18 : animal.Kind == BeastKind.Aurochs ? 12 : animal.Kind == BeastKind.Wolves ? 10 : 6;
-            double cost = animal.Kind == BeastKind.Dragon ? 90 : animal.Kind == BeastKind.Mammoths ? 42 : animal.Kind == BeastKind.Aurochs ? 24 : animal.Kind == BeastKind.Wolves ? 18 : 12;
+            double cost = animal.Kind == BeastKind.Dragon ? 90 : animal.Kind == BeastKind.Mammoths ? 42 : animal.Kind == BeastKind.Aurochs ? 24 : animal.Kind == BeastKind.Wolves ? 18 : animal.Kind == BeastKind.Goats ? 10 : 12;
             chance = animal.Kind == BeastKind.Dragon ? Math.Min(0.012, chance + animal.PositiveContacts * 0.00015) : Math.Min(0.90, chance + animal.PositiveContacts * 0.008);
             if (hostile && animal.Kind != BeastKind.Dragon) chance *= 0.35;
             string temperament = animal.Domestic ? "Companion" : hostile ? "Hostile" : animal.Kind == BeastKind.Deer ? "Skittish" : animal.Kind == BeastKind.Wolves ? "Wary" : animal.Kind == BeastKind.Aurochs ? "Protective" : "Defensive";
@@ -158,7 +163,17 @@ namespace Clio.Simulation
                 animal.Kind == BeastKind.Mammoths ? "Strong family herds resist threats. Patient contact is costly; a charge can devastate a small band." :
                 animal.Kind == BeastKind.Aurochs ? "Powerful grazing herds protect their own. They wander between pastures and may charge when threatened." :
                 animal.Kind == BeastKind.Wolves ? "Packs range through the land. Wary packs can learn trust; hostile predators may pursue a vulnerable people." :
+                animal.Kind == BeastKind.Goats ? "Wild goats range over hills and scrub. Repeated peaceful contact can produce a milk and meat herd." :
                 "Quick and cautious grazers. They are easier to approach peacefully, but tend to flee people and attackers.";
+            if (game.LivestockEnabled)
+            {
+                if (animal.Kind == BeastKind.Deer)
+                { chance = 0; threshold = 0; cost = 0; description = "Deer remain wild. They can be hunted, but cannot be befriended or domesticated."; }
+                if (animal.Domestic && animal.Kind == BeastKind.Wolves)
+                    description = "Dogs help their band hunt. They need food and provide no gathering bonus or food production.";
+                if (LivestockEconomy.IsLivestock(animal))
+                { temperament = "Livestock"; description = "Each animal contributes milk to the owner's food each turn. Slaughter provides meat immediately, but reduces the herd and future milk. The herd needs food for care."; }
+            }
             return new UnitProfile(UnitKind.Animal, animal.Id, animal.CellId, animal.Count, wounds, health, animal.Count * power * vigor,
                 hostile, temperament, animal.Domestic ? 0 : chance, threshold, cost, description);
         }
@@ -180,7 +195,8 @@ namespace Clio.Simulation
             bool visible = cell >= 0 && game.Explored.Contains(cell);
             UnitProfile target = !visible ? null : animal != null ? Animal(game, animal) : band != null ? Band(game, band) : null;
             double player = acting == null ? 0 : Band(game, acting).Strength, strength = target == null ? 0 : target.Strength;
-            double retaliation = animal != null && animal.Kind == BeastKind.Deer ? 0.08 : 0.8;
+            if (game.LivestockEnabled && acting != null && animal != null) player = HuntingStrength(game, acting);
+            double retaliation = animal != null && animal.Kind == BeastKind.Deer ? 0.08 : animal != null && animal.Kind == BeastKind.Goats ? .24 : 0.8;
             return new EncounterOutlook(attackReason.Length == 0, friendReason.Length == 0, visible && acting != null && cell != acting.CellId,
                 attackReason, friendReason, player, strength, player * 0.42, strength * 0.42 * retaliation,
                 visible && acting != null ? TravelRules.EncounterCost(game, acting, cell) : 0);
@@ -199,6 +215,7 @@ namespace Clio.Simulation
             int count = animal != null ? animal.Count : band != null ? band.Population : 0;
             int cell = animal != null ? animal.CellId : band != null ? band.CellId : -1;
             if (count <= 0 || cell < 0 || cell >= game.World.Cells.Length || !game.Explored.Contains(cell)) return "That group is no longer observed. Select a living known unit.";
+            if (friendly && animal != null && !LivestockEconomy.CanDomesticate(game, animal)) return "Deer remain wild. They can be hunted, but cannot be befriended or domesticated.";
             if (!game.World.Cells[cell].IsLand) return "Land encounters cannot reach a group on water.";
             if (cell != acting.CellId && !game.World.Cells[acting.CellId].Neighbors.Contains(cell)) return "Approach a group in this place or adjacent known land.";
             if (game.TerrainTravelEnabled && TravelRules.EncounterCost(game, acting, cell) > game.ActionsFor(actorId))
@@ -270,7 +287,7 @@ namespace Clio.Simulation
                 {
                     target.Domestic = true; target.OwnerId = ActionBand.Id; condition.HostileUntil = -1;
                     string suffix = target.Kind == BeastKind.Wolves ? " hearth dogs" : target.Kind == BeastKind.Aurochs ? " cattle" :
-                        target.Kind == BeastKind.Deer ? " companion deer" : target.Kind == BeastKind.Mammoths ? " hearth mammoths" : " bonded dragon";
+                        target.Kind == BeastKind.Goats ? " goats" : target.Kind == BeastKind.Deer ? " companion deer" : target.Kind == BeastKind.Mammoths ? " hearth mammoths" : " bonded dragon";
                     target.BreedName = Place(target.CellId) + suffix; target.Hardiness = 0.5 + (1 - World.Cells[target.CellId].Temperature) * 0.4;
                     target.Yield = 0.5 + World.Cells[target.CellId].Forage * 0.4;
                     outcome = "domesticated"; title = "A living companionship begins"; detail = target.BreedName + " now travels with " + ActionBand.Name + ".";
@@ -385,6 +402,7 @@ namespace Clio.Simulation
             if (animal.Domestic && animal.OwnerId != band.Id && Bands.Any(b => b.Id == animal.OwnerId))
                 Encounters.Wars.Add(EncounterState.Pair(band.Id, animal.OwnerId));
             double human = EncounterRules.Band(this, band).Strength, wild = EncounterRules.Animal(this, animal).Strength;
+            if (LivestockEnabled && !animalInitiated) human = EncounterRules.HuntingStrength(this, band);
             Encounters.Write(UnitKind.Animal, animal.Id).HostileUntil = Turn + 5;
             Encounters.Write(UnitKind.Animal, animal.Id).LastAttackTurn = Turn;
             animal.PositiveContacts = Math.Max(0, animal.PositiveContacts - (animalInitiated ? 0 : 2));
@@ -397,13 +415,13 @@ namespace Clio.Simulation
             {
                 ApplyDamage(UnitKind.Animal, animal.Id, Damage(human, 0.42));
                 if (animal.Count > 0) ApplyDamage(UnitKind.Band, band.Id, Damage(EncounterRules.Animal(this, animal).Strength,
-                    animal.Kind == BeastKind.Deer ? 0.035 : 0.34));
+                    animal.Kind == BeastKind.Deer ? 0.035 : animal.Kind == BeastKind.Goats ? .10 : 0.34));
             }
             band.Cohesion = Math.Max(0.1, band.Cohesion - 0.025 - Math.Max(0, (animalInitiated ? target.Count : actor.Count) - band.Population) * 0.008);
             double recovered = 0;
             if (!animalInitiated && band.Population > 0)
             {
-                recovered = (oldCount - animal.Count) * (animal.Kind == BeastKind.Dragon ? 160 : animal.Kind == BeastKind.Mammoths ? 85 : animal.Kind == BeastKind.Aurochs ? 38 : animal.Kind == BeastKind.Wolves ? 12 : 28);
+                recovered = (oldCount - animal.Count) * (animal.Kind == BeastKind.Dragon ? 160 : animal.Kind == BeastKind.Mammoths ? 85 : animal.Kind == BeastKind.Aurochs ? 38 : animal.Kind == BeastKind.Wolves ? 12 : animal.Kind == BeastKind.Goats ? 8 : 28);
                 band.Food += recovered;
                 if (IsPlayerTribe(band.Id) && recovered > 0) { hunts++; UpdateKnowledge(); }
             }
@@ -549,7 +567,7 @@ namespace Clio.Simulation
                 if (band.CellId != enemy.CellId) RelocateBand(band, enemy.CellId, true, EncounterKind.Move, false);
                 FightBands(band, enemy); return;
             }
-            if (SaltEnabled || TerrainTravelEnabled || WoodEnabled) { ActSaltIndependent(band); return; }
+            if (SaltEnabled || TerrainTravelEnabled || WoodEnabled || LivestockEnabled) { ActSaltIndependent(band); return; }
             int best = World.Cells[band.CellId].Neighbors.Concat(new[] { band.CellId }).Where(n => World.Cells[n].IsLand &&
                 !EncounterRules.HostileAt(this, n, band.Id)).OrderByDescending(n => ForageYield(n, band)).ThenBy(n => n).DefaultIfEmpty(band.CellId).First();
             RelocateBand(band, best, false, EncounterKind.Move);
@@ -616,12 +634,18 @@ namespace Clio.Simulation
                     if (owner != null && owner.Population > 0) animal.CellId = owner.CellId;
                     if (Turn % 6 == 0)
                     {
+                        if (LivestockEnabled) { GrowLivestockHerd(animal); continue; }
                         int capacity = animal.Kind == BeastKind.Dragon ? 1 : animal.Kind == BeastKind.Mammoths ? 8 : animal.Kind == BeastKind.Wolves ? 24 : 60;
                         if (owner != null) capacity = Math.Min(capacity, Math.Max(4, owner.Population));
-                        animal.Count = Math.Min(capacity, animal.Count + Math.Max(1, animal.Count / 12));
+                        int next = Math.Min(capacity, animal.Count + Math.Max(1, animal.Count / 12));
+                        animal.Count = next;
                     }
                 }
-                else if (Turn % 8 == 0) animal.Count = Math.Min(animal.Kind == BeastKind.Dragon ? 1 : 120, animal.Count + Math.Max(1, animal.Count / 10));
+                else if (Turn % 8 == 0)
+                {
+                    int next = Math.Min(animal.Kind == BeastKind.Dragon ? 1 : 120, animal.Count + Math.Max(1, animal.Count / 10));
+                    if (LivestockEnabled) SetLivestockCount(animal, next); else animal.Count = next;
+                }
             }
         }
     }

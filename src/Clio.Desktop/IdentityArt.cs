@@ -265,6 +265,13 @@ namespace Clio.Desktop
                             using (Pen tusk = new Pen(color, 3.7f) { StartCap = LineCap.Round, EndCap = LineCap.Round })
                                 g.DrawBezier(tusk, 77, 39, 79, 57, 102, 58, 101, 39);
                             break;
+                        case BeastKind.Goats:
+                            FillAnimal(g, b, Points(17, 34, 30, 28, 53, 30, 63, 34, 66, 25, 72, 18, 81, 21, 88, 29, 97, 32, 95, 39, 84, 39, 79, 47, 71, 44, 65, 50, 65, 68, 58, 68, 55, 48, 34, 47, 28, 57, 26, 68, 19, 68, 21, 51, 23, 42, 16, 42, 10, 29));
+                            g.DrawBezier(line, 75, 23, 70, 6, 48, 3, 48, 20);
+                            g.DrawBezier(line, 82, 23, 81, 7, 62, 2, 60, 16);
+                            g.FillPolygon(b, Points(79, 39, 89, 39, 83, 53));
+                            g.FillPolygon(b, Points(40, 43, 46, 45, 40, 66, 46, 69, 37, 69));
+                            break;
                         case BeastKind.Deer:
                             FillAnimal(g, b, Points(17, 39, 33, 34, 55, 36, 63, 24, 68, 14, 76, 17, 81, 21, 93, 24, 91, 29, 78, 30, 73, 42, 65, 48, 67, 69, 61, 69, 58, 46, 38, 46, 28, 58, 28, 69, 22, 69, 23, 54, 26, 45, 18, 44, 10, 34));
                             g.DrawLines(line, Points(72, 19, 66, 10, 59, 5, 58, 1));

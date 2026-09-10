@@ -51,15 +51,26 @@ namespace Clio.Desktop
             }
         }
 
-        private static string AnimalUnitName(Beast animal)
-        { return animal.Domestic && !String.IsNullOrEmpty(animal.BreedName) ? animal.BreedName : animal.Kind == BeastKind.Wolves ? "Wolf pack" : animal.Kind == BeastKind.Mammoths ? "Mammoth herd" : animal.Kind == BeastKind.Dragon ? "Dragon" : animal.Kind + " herd"; }
+        private string AnimalUnitName(Beast animal)
+        {
+            if (game.LivestockEnabled && animal.Domestic)
+                return LivestockEconomy.DisplayName(game, animal) + (LivestockEconomy.IsLivestock(animal) ? " herd" : "");
+            return animal.Domestic && !String.IsNullOrEmpty(animal.BreedName) ? animal.BreedName : animal.Kind == BeastKind.Wolves ? "Wolf pack" : animal.Kind == BeastKind.Mammoths ? "Mammoth herd" : animal.Kind == BeastKind.Dragon ? "Dragon" : animal.Kind + " herd";
+        }
 
         private static string UnitTemperament(UnitProfile unit)
         { return unit.Hostile && unit.Temperament == "Companion" ? "Hostile companion" : unit.Temperament; }
 
         private string AnimalUnitDescription(Beast animal, UnitProfile unit)
         {
+            if (game.LivestockEnabled && animal.Kind == BeastKind.Deer)
+                return "Deer remain wild. They can be hunted, but cannot be domesticated.";
             if (!animal.Domestic) return unit.Description;
+            if (game.LivestockEnabled && game.CanControlBand(animal.OwnerId))
+            {
+                if (animal.Kind == BeastKind.Wolves) return "Dogs help this band's hunts. They do not gather or produce food, and their care costs food each turn.";
+                if (LivestockEconomy.IsLivestock(animal)) return "Milk scales with the number of living animals. Slaughter provides meat now by killing animals, reducing the herd and its future milk output.";
+            }
             if (game.CanControlBand(animal.OwnerId)) return "Travels with its own household in your tribe. Its benefits and care are recorded in that household's ledger.";
             return unit.Hostile ? "This group belongs to a hostile people and can be attacked separately." : "This group belongs to another people. Attacking it starts a feud.";
         }
@@ -109,7 +120,7 @@ namespace Clio.Desktop
             if (game.Rules == SimulationRules.Classic) { Command("tame"); return; }
             if (LostUnitSelection()) return;
             Beast target = game.Beasts.FirstOrDefault(b => b.Id == selectedAnimalId && b.Count > 0 && UnitVisible(b.CellId));
-            if (target == null) target = game.Beasts.Where(b => b.CellId == CurrentOrderBand.CellId && b.Count > 0 && !b.Domestic).OrderByDescending(b => EncounterRules.Animal(game, b).FriendChance).ThenBy(b => b.Id).FirstOrDefault();
+            if (target == null) target = game.Beasts.Where(b => b.CellId == CurrentOrderBand.CellId && b.Count > 0 && !b.Domestic && LivestockEconomy.CanDomesticate(game, b)).OrderByDescending(b => EncounterRules.Animal(game, b).FriendChance).ThenBy(b => b.Id).FirstOrDefault();
             if (target != null) { SelectAnimal(target); OpenEncounterChoice(UnitKind.Animal, target.Id); }
             else { StopAutoplay(null); status = "Select a wild animal unit. Each group carries its own trust and temperament."; Invalidate(); }
         }
@@ -203,6 +214,8 @@ namespace Clio.Desktop
             Typography.Draw(g, outlook.CanAttack ? outlook.Summary : outlook.AttackReason, new RectangleF(418, 554, 764, 48), 17, Art.Ink, TypeRole.Body);
             string friendship = animal == null ? "Attacking another people begins a feud. Their band may return the attack." : animal.Domestic ? "This is a domestic lineage. Its allegiance belongs to its people." :
                 "Peaceful encounter: " + (target.FriendChance * 100).ToString("0.#") + "% chance of trust. " + animal.PositiveContacts + " / " + target.TrustThreshold + " trust; offering " + target.OfferingCost.ToString("0") + ". A rejected approach can cause injuries.";
+            if (animal != null && game.LivestockEnabled && !LivestockEconomy.CanDomesticate(game, animal))
+                friendship = "Deer cannot be domesticated. Hunt this wild group or leave it alone; peaceful approaches do not turn it into a domestic herd.";
             Typography.Draw(g, friendship, new RectangleF(418, 615, 764, 56), 17, Art.Muted, TypeRole.Body);
             Typography.Line(g, outlook.RequiresMove ? outlook.ActionCost + (outlook.ActionCost == 1 ? " action includes" : " actions include") + " the approach and encounter." + (outlook.ActionCost > 1 ? " Mountains and river crossings take extra effort." : "") : "One action. Damage and trust stay with each moving unit.", new RectangleF(418, 681, 764, 29), 17, Art.Gold, TypeRole.Annotation, true);
             if (animal != null && !outlook.CanBefriend) Typography.Line(g, Timeline.DisplayText(game, outlook.BefriendReason), new RectangleF(418, 712, 764, 24), 14, Art.Muted, TypeRole.Annotation, true);
@@ -269,8 +282,10 @@ namespace Clio.Desktop
                 string belonging = owner == null || owner.Population <= 0 ? "An unaccompanied lineage" : game.CanControlBand(owner.Id) || UnitVisible(owner.CellId) ? "Companions of " + owner.Name : "Companions of another people";
                 Typography.Line(g, belonging, new RectangleF(1295, 553, 267, 28), 16, Art.Gold, TypeRole.Annotation, true);
                 Typography.Draw(g, DomesticLineageBenefit(animal), new RectangleF(1295, 592, 267, 53), 17, Art.Ink, TypeRole.Body);
-                Typography.Draw(g, AnimalUnitDescription(animal, unit), new RectangleF(1295, 655, 267, 75), 16, Art.Muted, TypeRole.Annotation);
-                if (game.CanControlBand(animal.OwnerId)) Button(g, "Household resources", 1295, 739, 267, 37, delegate { ArmMapCommandBand(animal.OwnerId); OpenEconomy(2); }, false, false);
+                bool harvest = game.LivestockEnabled && LivestockEconomy.IsLivestock(animal) && game.CanControlBand(animal.OwnerId);
+                Typography.Draw(g, harvest ? LivestockHarvestSummary(animal) : AnimalUnitDescription(animal, unit), new RectangleF(1295, 655, 267, 75), 16, Art.Muted, TypeRole.Annotation);
+                if (harvest) DrawLivestockHarvestButton(g, animal, new RectangleF(1295, 739, 267, 37));
+                else if (game.CanControlBand(animal.OwnerId)) Button(g, "Household resources", 1295, 739, 267, 37, delegate { ArmMapCommandBand(animal.OwnerId); OpenEconomy(2); }, false, false);
                 else
                 {
                     EncounterOutlook outlook = EncounterRules.Outlook(game, CurrentOrderBand.Id, UnitKind.Animal, animal.Id);
@@ -279,8 +294,9 @@ namespace Clio.Desktop
             }
             else
             {
-                InspectorPair(g, "Trust", animal.PositiveContacts + " / " + unit.TrustThreshold, 552);
-                InspectorPair(g, "Peaceful chance", (unit.FriendChance * 100).ToString("0.#") + "%", 582);
+                bool tamable = LivestockEconomy.CanDomesticate(game, animal);
+                InspectorPair(g, tamable ? "Trust" : "Domestication", tamable ? animal.PositiveContacts + " / " + unit.TrustThreshold : "Not possible", 552);
+                InspectorPair(g, tamable ? "Peaceful chance" : "Options", tamable ? (unit.FriendChance * 100).ToString("0.#") + "%" : "Hunt or leave", 582);
                 Typography.Draw(g, unit.Description, new RectangleF(1295, 624, 267, 65), 16, Art.Muted, TypeRole.Annotation);
                 EncounterOutlook outlook = EncounterRules.Outlook(game, CurrentOrderBand.Id, UnitKind.Animal, animal.Id);
                 EncounterAction(g, "Attack  [A]", new RectangleF(1295, 706, 128, 38), outlook.CanAttack, delegate { OpenEncounterChoice(UnitKind.Animal, animal.Id); }, false);

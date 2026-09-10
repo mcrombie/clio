@@ -125,7 +125,7 @@ namespace Clio.Simulation
             {
                 if (!Int32.TryParse(verb.Substring(colon + 1), NumberStyles.Integer, CultureInfo.InvariantCulture, out target)) return "Choose a valid order target.";
                 verb = verb.Substring(0, colon);
-                if (verb != "move" && verb != "attack-animal" && verb != "befriend-animal" && verb != "attack-band") return "That is not a band order.";
+                if (verb != "move" && verb != "attack-animal" && verb != "befriend-animal" && verb != "attack-band" && verb != "slaughter") return "That is not a band order.";
             }
             else if (verb != "forage" && verb != "salt" && verb != "wood" && verb != "camp" && verb != "split" && verb != "hunt" && verb != "tame" && verb != "wait") return "That is not a band order.";
             if (ActionsFor(actorId) <= 0) return "This band has spent its effort. Other bands may still act.";
@@ -136,7 +136,7 @@ namespace Clio.Simulation
                     verb == "wood" ? GatherWood() :
                     verb == "camp" ? Camp() : verb == "split" ? Split() : verb == "hunt" ? Hunt() : verb == "tame" ? Tame() :
                     verb == "attack-animal" ? AttackAnimal(target) : verb == "befriend-animal" ? BefriendAnimal(target) :
-                    verb == "attack-band" ? AttackBand(target) : WaitForTribe();
+                    verb == "attack-band" ? AttackBand(target) : verb == "slaughter" ? SlaughterHerd(target) : WaitForTribe();
                 if (BandPersonalitiesEnabled && ActionPoints != before)
                 {
                     tribePersonalityOrders[actorId] = Turn;

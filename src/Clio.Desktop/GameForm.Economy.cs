@@ -92,7 +92,7 @@ namespace Clio.Desktop
             EconomyPanel(g, 550, 492, "II  /  How the household is fed");
             EconomyAmount(g, 571, 464, 449, "Food gathered per action", game.ForageYield(own.CellId, own), true);
             EconomyAmount(g, 571, 504, 449, "Hearth production, per turn", EconomyActive ? forecast.CampFood : 0, true);
-            EconomyAmount(g, 571, 544, 449, "Cattle produce, per turn", EconomyActive ? domestic.CattleFood : 0, true);
+            EconomyAmount(g, 571, 544, 449, game.LivestockEnabled ? "Milk from livestock, per turn" : "Cattle produce, per turn", EconomyActive ? domestic.CattleFood : 0, true);
             Art.Rule(g, 571, 589, 448);
             Typography.Draw(g, own.Settled ? "Your hearth adds production at the end of each turn. Gathering still uses an action and depletes the ground." : "Your people are travelling. An established hearth can add production when the turn ends.", new RectangleF(571, 611, 448, 86), 19, Art.Ink, TypeRole.Annotation);
             Button(g, "Food and salt", 571, 726, 219, 32, delegate { economyResourcePage = 0; OpenEconomy(2); }, false, false);
@@ -153,7 +153,7 @@ namespace Clio.Desktop
             LedgerMetric(g, 42, "Gather here", "+" + game.ForageYield(own.CellId, own).ToString("N0"), "Food gathered per action", Art.Gold);
             LedgerMetric(g, 348, "Ground recovery", ((1 - game.Depletion[own.CellId]) * 100).ToString("0") + "%", "At your household's current place", LedgerGreen);
             LedgerMetric(g, 654, "Hearth production", (EconomyActive ? forecast.CampFood : 0).ToString("0.0"), "Per turn, while a hearth is established", Art.Gold);
-            LedgerMetric(g, 960, "Cattle production", effects.CattleFood.ToString("0.0"), effects.Cattle + " cattle across your lineages", LedgerGreen);
+            LedgerMetric(g, 960, game.LivestockEnabled ? "Milk per turn" : "Cattle production", effects.CattleFood.ToString("0.0"), game.LivestockEnabled ? effects.Cattle + " cattle · " + effects.Goats + " goats" : effects.Cattle + " cattle across your lineages", LedgerGreen);
             LedgerMetric(g, 1266, "Animal care", effects.AnimalCare.ToString("0.0"), "Food per turn for this band's companions", Art.Ink);
 
             EconomyPanel(g, 42, 482, "I  /  The gathering calculation");
@@ -181,7 +181,7 @@ namespace Clio.Desktop
             {
                 Art.Icon(g, "leaf", 1257, 489, 46, Art.Gold);
                 Typography.Draw(g, "No domestic lineages yet.", new RectangleF(1061, 563, 476, 43), 29, Art.Ink, TypeRole.Heading);
-                Typography.Draw(g, "Inspect a known animal group to learn what a peaceful approach requires. Established companions can add food, gathering aid or strength, with care paid each turn.", new RectangleF(1061, 626, 476, 105), 19, Art.Muted, TypeRole.Annotation);
+                Typography.Draw(g, game.LivestockEnabled ? "Dogs support hunting. Cattle and goats provide milk, or meat when slaughtered. Deer cannot be domesticated. Inspect a group to read its benefits and care costs." : "Inspect a known animal group to learn what a peaceful approach requires. Established companions can add food, gathering aid or strength, with care paid each turn.", new RectangleF(1061, 626, 476, 105), 19, Art.Muted, TypeRole.Annotation);
             }
             else
             {
@@ -190,12 +190,19 @@ namespace Clio.Desktop
                 {
                     Beast herd = companions[economyLineagePage * 3 + i]; float y = 466 + i * 81;
                     IdentityArt.DrawAnimal(g, herd.Kind, new RectangleF(1061, y + 5, 36, 31), Art.Ink, true);
-                    Typography.Line(g, herd.Count + "  " + herd.BreedName, new RectangleF(1112, y, 424, 31), 23, Art.Ink, TypeRole.Heading, true);
+                    Typography.Line(g, herd.Count + "  " + (game.LivestockEnabled ? LivestockEconomy.DisplayName(game, herd) : herd.BreedName), new RectangleF(1112, y, 424, 31), 23, Art.Ink, TypeRole.Heading, true);
                     Typography.Line(g, DomesticLineageBenefit(herd), new RectangleF(1112, y + 33, 424, 29), 16, Art.Muted, TypeRole.Annotation, true);
                     Art.Line(g, Border, 1, 1061, y + 72, 1536, y + 72);
+                    int herdId = herd.Id;
+                    buttons.Add(new UiButton(new RectangleF(1061, y, 475, 72), delegate
+                    {
+                        Beast current = game.Beasts.FirstOrDefault(b => b.Id == herdId && b.Count > 0 && game.CanControlBand(b.OwnerId));
+                        if (current == null || !UnitVisible(current.CellId)) return;
+                        SelectAnimal(current); page = 0; map.Focus(game.World.Cells[current.CellId]); ShowMapSelection();
+                    }) { Tip = game.LivestockEnabled && LivestockEconomy.IsLivestock(herd) ? "Inspect this herd's milk, care, and the food and animal cost of slaughter." : "Inspect this companion group's benefits and care." });
                 }
                 if (companions.Length > 3) LedgerPager(g, 1061, 731, 475, economyLineagePage, companions.Length, 3, delegate(int next) { economyLineagePage = next; });
-                else Typography.Line(g, "Benefits combine across your living lineages.", new RectangleF(1061, 732, 475, 27), 17, Art.Muted, TypeRole.Annotation, true);
+                else Typography.Line(g, "Select a group to inspect its benefits and available actions.", new RectangleF(1061, 732, 475, 27), 17, Art.Muted, TypeRole.Annotation, true);
             }
         }
 
@@ -269,19 +276,20 @@ namespace Clio.Desktop
             Typography.Draw(g, "No coinage, taxation, borrowing or debt is simulated.", new RectangleF(63, 725, 441, 37), 16, Art.Muted, TypeRole.Annotation);
 
             EconomyPanel(g, 542, 486, "II  /  Recorded sources and uses");
-            EconomyAmount(g, 563, 463, 444, "Gathered (includes companion aid)", totals.FoodGathered, false);
-            EconomyAmount(g, 563, 493, 444, "Hearth and cattle production", totals.CampFoodProduced + totals.CattleFoodProduced, false);
-            EconomyAmount(g, 563, 523, 444, "Hunt recoveries", totals.FoodHunted, false);
-            EconomyAmount(g, 563, 553, 444, "Encounter inflows", totals.CombatFoodGained, false);
-            EconomyAmount(g, 563, 595, 444, "People supplied", totals.FoodConsumed, false);
-            EconomyAmount(g, 563, 625, 444, "Animal care paid", totals.AnimalCarePaid, false);
-            EconomyAmount(g, 563, 655, 444, "Reserve lost after upkeep", totals.FoodSpoiled, false);
-            EconomyAmount(g, 563, 685, 444, game.TribesEnabled ? "Food leaving the tribe" : "Food sent with daughters", totals.FoodShared, false);
+            EconomyAmount(g, 563, 461, 444, "Gathered food", totals.FoodGathered, false);
+            EconomyAmount(g, 563, 489, 444, game.LivestockEnabled ? "Camp and milk production" : "Hearth and cattle production", totals.CampFoodProduced + totals.CattleFoodProduced, false);
+            EconomyAmount(g, 563, 517, 444, game.LivestockEnabled ? "Meat from slaughter" : "Hunt recoveries", game.LivestockEnabled ? totals.LivestockMeatProduced : totals.FoodHunted, false);
+            EconomyAmount(g, 563, 545, 444, game.LivestockEnabled ? "Hunt recoveries" : "Encounter inflows", game.LivestockEnabled ? totals.FoodHunted : totals.CombatFoodGained, false);
+            if (game.LivestockEnabled) EconomyAmount(g, 563, 573, 444, "Encounter inflows", totals.CombatFoodGained, false);
+            EconomyAmount(g, 563, 602, 444, "People supplied", totals.FoodConsumed, false);
+            EconomyAmount(g, 563, 630, 444, "Animal care paid", totals.AnimalCarePaid, false);
+            EconomyAmount(g, 563, 658, 444, "Reserve lost after upkeep", totals.FoodSpoiled, false);
+            EconomyAmount(g, 563, 686, 444, game.TribesEnabled ? "Food leaving the tribe" : "Food sent with daughters", totals.FoodShared, false);
             Typography.Draw(g, "Selected details, not additive totals: hunt recoveries can also be encounter inflows. All action costs enter the account at left.", new RectangleF(563, 722, 444, 43), 14.5f, Art.Muted, TypeRole.Annotation);
 
             EconomyPanel(g, 1044, 514, game.TribesEnabled ? "III  /  Selected household forecast" : "III  /  The next turn's account");
             EconomyAmount(g, 1065, 463, 472, "Starting food reserves", forecast.StartingFood, false);
-            EconomyAmount(g, 1065, 493, 472, "Hearth and cattle produce", EconomyActive ? forecast.CampFood + forecast.CattleFood : 0, true);
+            EconomyAmount(g, 1065, 493, 472, game.LivestockEnabled ? "Camp and milk production" : "Hearth and cattle produce", EconomyActive ? forecast.CampFood + forecast.CattleFood : 0, true);
             EconomyAmount(g, 1065, 523, 472, "Animal care actually paid", -forecast.ActualAnimalCare, true);
             EconomyAmount(g, 1065, 553, 472, "People actually supplied", -EconomyPeopleSupplied(forecast), true);
             EconomyAmount(g, 1065, 583, 472, "Reserve lost after upkeep", -forecast.Spoilage, true);

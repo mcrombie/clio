@@ -95,6 +95,7 @@ namespace Clio.Desktop
             if (notice.Kind == StoryNoticeKind.Travel) { OpenLandscapeGuide(); Invalidate(); return; }
             if (notice.Kind == StoryNoticeKind.Salt) { if (game.CanControlBand(notice.ActorBandId)) ArmMapCommandBand(notice.ActorBandId); OpenSaltEconomy(); Invalidate(); return; }
             if (notice.Kind == StoryNoticeKind.Wood) { if (game.CanControlBand(notice.ActorBandId)) ArmMapCommandBand(notice.ActorBandId); OpenWoodEconomy(); Invalidate(); return; }
+            if (notice.Kind == StoryNoticeKind.Livestock) { if (game.CanControlBand(notice.ActorBandId)) ArmMapCommandBand(notice.ActorBandId); OpenEconomy(2); Invalidate(); return; }
             if (notice.AnimalId >= 0)
             {
                 Beast animal = game.Beasts.FirstOrDefault(b => b.Id == notice.AnimalId && b.Count > 0 && UnitVisible(b.CellId));

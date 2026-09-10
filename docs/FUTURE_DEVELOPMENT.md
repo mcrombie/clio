@@ -1,6 +1,12 @@
-# Clio — consolidated future development notes
+﻿# Clio — consolidated future development notes
 
-Updated 2026-09-09. **Status: research and proposals, except the first gathering slice and the wood system described in [Gatherings](GATHERINGS.md) and [Wood](WOOD.md).** This is the consolidated place for new future-development ideas. Existing detailed designs remain in [GAME_DESIGN.md](GAME_DESIGN.md) and [ADVANCEMENT_WEB.md](ADVANCEMENT_WEB.md); the [README](../README.md) and [validation record](VALIDATION.md) describe what runs.
+
+## Livestock prototype and later questions
+
+The current [livestock prototype](LIVESTOCK.md) adds cattle and goat milk proportional to herd population, deliberate slaughter for meat, and hunting-only dog support. Deer remain wild under Clio's rules. Milk and meat share the food reserve, with source receipts for readability.
+
+Defer pasture and carrying capacity, seasonal milk or birth cycles, disease, milk tolerance, preservation, hides and wool until their individual effects are discussed. Do not add them automatically with this prototype. Domestic animals should not make farming, permanent settlement or hereditary authority inevitable.
+
 
 ## Direction recorded from Michael
 

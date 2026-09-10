@@ -67,17 +67,23 @@ namespace Clio.Desktop
 
             bool nearbyAnimals = game.Rules == SimulationRules.MobileUnits && game.Beasts.Any(b => b.Count > 0 && !b.Domestic &&
                 game.Explored.Contains(b.CellId) && (b.CellId == band.CellId || game.World.Cells[band.CellId].Neighbors.Contains(b.CellId)));
-            bool companions = domestic.Dogs + domestic.Cattle + domestic.OtherCompanions > 0;
+            bool companions = domestic.Dogs + domestic.Cattle + domestic.Goats + domestic.OtherCompanions > 0;
             if (companions || nearbyAnimals)
             {
                 string detail = companions ? "Its companions currently add " + LessonNumber((domestic.GatheringMultiplier - 1) * 100) + "% to gathering and produce " +
                     LessonNumber(domestic.CattleFood) + " food from cattle, with " + LessonNumber(domestic.AnimalCare) + " food of care per close. These effects belong to this household." :
                     "Wild groups move independently. Befriending has an offering cost and can provoke retaliation; inspect the chosen animal's temperament, chance and trust requirement first. Trust must reach that group's threshold before domestication.";
+                if (game.LivestockEnabled)
+                    detail = (companions ? "This band owns " + domestic.Dogs + " dogs, " + domestic.Cattle + " cattle and " + domestic.Goats + " goats. " +
+                        "Its herds produce " + LessonNumber(domestic.MilkFood) + " milk food per turn; all animal care costs " + LessonNumber(domestic.AnimalCare) + " food per turn. " : "Befriending costs food and an action and can cause injuries. ") +
+                        "Dogs improve " + (game.Rules == SimulationRules.MobileUnits ? "strength when attacking animals" : "hunting chances") +
+                        ", without producing food or improving gathering. Cattle and goats produce milk for every living animal; larger herds also need more care. Deer stay wild and cannot be domesticated.";
                 result.Add(BeginnerLesson("companions", band, "Companions help, and must be fed",
                     companions ? "This household's animals cost " + LessonNumber(domestic.AnimalCare) + " food each close. Their actual output and benefits appear in Resources." :
                         "The animals nearby are living groups. Befriending them is a risky investment, not a free pickup.",
                     detail,
-                    "Dogs can improve gathering and hunting; other species have different effects. Review the actual companion ledger before adopting more mouths.", AdviserAction.ReviewAnimals, 5));
+                    game.LivestockEnabled ? "Keep cattle and goats for recurring milk, or slaughter some for meat now. A slaughter order uses one action and reduces herd size, future milk and care. Read the actual preview before choosing." :
+                        "Dogs can improve gathering and hunting; other species have different effects. Review the actual companion ledger before adopting more mouths.", AdviserAction.ReviewAnimals, 5));
             }
 
             if (game.TribesEnabled && game.ControlledBands.Count() > 1)
@@ -153,7 +159,8 @@ namespace Clio.Desktop
                 case "lesson:movement": tradeoff = "Travel uses food and actions. A two-action journey leaves no gathering action on arrival."; break;
                 case "lesson:camp": tradeoff = "Making camp costs one action, 30 food" + (game.WoodEnabled ? " and " + LessonNumber(WoodEconomy.CampCost) + " wood" : "") + ". Leaving abandons the camp; staying still requires food and salt."; break;
                 case "lesson:wood": tradeoff = "Collecting wood uses an action. Keep food and salt supplied first; a camp also spends wood that could have fueled fires."; break;
-                case "lesson:companions": tradeoff = "Befriending can provoke damage and costs an offering. Domestic companions then require their owner's continuing care."; break;
+                case "lesson:companions": tradeoff = game.LivestockEnabled ? "Animal care uses food. Slaughter gives meat now but removes animals that could produce milk in future turns. Dogs help hunting and require care; they provide no food or gathering bonus." :
+                    "Befriending can provoke damage and costs an offering. Domestic companions then require their owner's continuing care."; break;
                 case "lesson:reunion": tradeoff = "A reunion journey costs travel and time away from productive ground. Sharing a hex does not pool supplies."; break;
                 case "lesson:diplomacy": tradeoff = "A refused invitation still costs its stated action and provisions. Gifts and promised return journeys have separate costs."; break;
                 case "lesson:culture": tradeoff = "Reading costs nothing, but it grants no discovery. Your bands must still carry out the relevant work."; break;

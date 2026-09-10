@@ -276,15 +276,19 @@ namespace Clio.Desktop
                     if (voice == CounsellorId.Stores)
                     {
                         speech = "I want every companion's care counted beside its contribution. Affection does not feed an animal.";
-                        argument = "Review the owned lineages' actual benefits and care costs. Dogs, cattle and other companions have different effects; their number alone is not a measure of their value.";
-                        tradeoff = "Care consumes food even when a companion's particular benefit is not being used.";
+                        argument = game.LivestockEnabled ? "Milk and care scale with the number of cattle and goats. Compare the milk forecast with the food care cost. Dogs help hunting but produce no food and do not improve gathering." :
+                            "Review the owned lineages' actual benefits and care costs. Dogs, cattle and other companions have different effects; their number alone is not a measure of their value.";
+                        tradeoff = game.LivestockEnabled ? "Slaughter provides meat immediately, but fewer animals remain to supply milk. Care also falls as the herd shrinks." :
+                            "Care consumes food even when a companion's particular benefit is not being used.";
                         rebuttal = "Social adviser: Count the care, but remember which household formed the bond. A lineage is more than a favorable balance.";
                         action = AdviserAction.ReviewAnimals;
                     }
                     else if (voice == CounsellorId.Watch)
                     {
                         speech = "I would inspect the companions before trusting them with a dangerous journey.";
-                        argument = "Review the living owned units and their conditions. Companions follow their owner; they do not become independently commanded scouts or automatic reinforcements.";
+                        argument = game.LivestockEnabled ? "Dogs improve " + (game.Rules == SimulationRules.MobileUnits ? "strength when attacking animals" : "hunting chances") +
+                            " and follow their owning band. They do not produce food, improve gathering or become independently commanded scouts. Inspect the prey before hunting." :
+                            "Review the living owned units and their conditions. Companions follow their owner; they do not become independently commanded scouts or automatic reinforcements.";
                         tradeoff = "A useful companion cannot make every encounter safe.";
                         rebuttal = "Economic adviser: Their usefulness still draws on a household's food. Read the care before making the next journey harder to provision.";
                         action = AdviserAction.ReviewUnits;
@@ -292,7 +296,8 @@ namespace Clio.Desktop
                     else if (voice == CounsellorId.Memory)
                     {
                         speech = "I would remember this as more than a useful capture. Our people have begun a living lineage.";
-                        argument = "Read the companion lineages and their stated effects. The founding relationship belongs to the history; later generations still need care.";
+                        argument = game.LivestockEnabled ? "Cattle and goats provide milk without losing animals. Meat requires slaughter. Deer cannot be domesticated; inspect a species before investing in befriending it." :
+                            "Read the companion lineages and their stated effects. The founding relationship belongs to the history; later generations still need care.";
                         tradeoff = "A long memory does not protect a lineage from loss or release when its owner dies.";
                         rebuttal = "Economic adviser: Remember the beginning, and account for the living animals now. A lineage needs more than an honored name.";
                         action = AdviserAction.ReviewAnimals;

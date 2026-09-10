@@ -4,18 +4,18 @@ An illustrated adviser appears with a brief explanation, **Tell me more**, and a
 
 Each new story opens with a prominent parchment briefing: your people, language, first place, actual provisions and salt, three early priorities, and the four advisers. **Begin our story** dismisses it; **Meet advisers** opens their council profiles. Enter or Escape begins play. Reading or closing the announcement spends no action, and loading an existing story does not repeat it.
 
-Four named advisers have original painted portraits and distinct priorities:
+Four advisers have original painted portraits and clearly named roles:
 
 | Adviser | Office | Bias |
 | --- | --- | --- |
-| **Sula** | Keeper of stores | Secure provisions before spending people and supplies on ambition. |
-| **Tavo** | Warden of paths | Protect households and safe approaches before taking chances. |
-| **Yara** | Keeper of memory | Seek discoveries and preserve a cultural legacy, even when caution would keep the people home. |
-| **Lian** | Voice of kinship | Keep households connected and preserve relationships before accepting separation. |
+| **Economic adviser** | Supplies and survival | Secure provisions before spending people and supplies on ambition. |
+| **Military adviser** | Movement and threats | Protect households and safe approaches before taking chances. |
+| **Cultural adviser** | Knowledge and language | Seek discoveries and preserve a cultural legacy, even when caution would keep the people home. |
+| **Social adviser** | Bands and relationships | Keep households connected and preserve relationships before accepting separation. |
 
 They read the same evidence, but advocate different priorities. The full council separates observed facts or a recorded development from the selected adviser's speech, argument, the cost of that view, and an attributed answer from another adviser. Their disagreements are opinions about existing mechanics, not extra simulation effects. Switch among the four portraits to weigh their counsel. [Design references and interpretation](COUNCIL_INSPIRATION.md).
 
-**Favor Sula / Tavo / Yara / Lian** makes that adviser speak first for ordinary concerns and optional guidance. Urgent and critical economic or military warnings retain their specialist. Favoring a voice does not suppress reports, change urgency, spend an action, issue an order, or change autoplay. The preference lasts for the application session, including loading or starting another story; it is not saved with a campaign. **Meet the council** lets you read their priorities even when no concerns are active.
+**Prefer this adviser** makes the selected adviser speak first for ordinary concerns and optional guidance. Urgent and critical economic or military warnings retain their specialist. Favoring a voice does not suppress reports, change urgency, spend an action, issue an order, or change autoplay. The preference lasts for the application session, including loading or starting another story; it is not saved with a campaign. **Meet the council** lets you read their priorities even when no concerns are active.
 
 Current economic and military concerns are:
 
@@ -25,6 +25,7 @@ Current economic and military concerns are:
 | Salt deficiency | The current forecast cannot supply the next turn's full salt need | Urgent; Critical when the forecast includes salt deaths |
 | Narrowing food reserves | The current forecast is losing food and ends with less than one turn's upkeep remaining | Warning |
 | Hunger | The current forecast includes hunger deaths | Critical |
+| Low wood | Wood covers fewer than two turns of fire | Watch; food and salt warnings take precedence |
 | Hostile people nearby | An already hostile, observed band is within one adjacent hex of a controlled household | Warning; Urgent if they share a hex |
 
 Food advice uses the same forecast as Economy, including camp and herd output, companion care, upkeep and spoilage. It describes current conditions; other units' movement and encounters can change the eventual outcome. Military advice reports observed proximity and existing hostility, not a prediction that an attack will occur. Neutral people and wild animals do not trigger this first military adviser.
@@ -49,6 +50,8 @@ Choose **Adviser frequency** in **Watch settings** or at the bottom of the counc
 Frequency is saved separately from campaigns in `%LOCALAPPDATA%\Clio\advisers.txt`. It survives loading, new stories and reopening Clio. A missing or invalid preference defaults to High; selecting None is respected in later stories. This setting changes presentation only. The opening story announcement and actual encounter/ending decisions remain separate from adviser frequency.
 
 High teaches food reserves and upkeep, salt sources, per-band actions, travel costs, camps, animal companionship, reunions, landscape markers, diplomacy when available, and cultural practices. Lessons use the selected controlled household's current supplies and observed surroundings; learning a topic acknowledges it for that story session. Loaded games can receive these lessons immediately without replaying old developments. Important developments and warnings take priority over general teaching. Moderate introduces topics when they become relevant. All available lessons remain readable manually at any frequency.
+
+Animal teaching follows the story's active rules. After `enable-livestock`, advisers explain that cattle and goats provide milk by head count, while slaughter trades future milk for immediate meat. Dogs improve strength when attacking animals in MobileUnits play, or hunting chance in Classic play; they supply no food or gathering bonus. Deer cannot be domesticated; any domestic deer in an older story are released when the recorded upgrade occurs. The first slaughter receives a fuller explanation, while later slaughter entries remain in History without repeating the lesson. Upgrade and livestock guidance respect High / Moderate / Low / None and do not open a second automatic history popup. Inspection opens the Resources ledger.
 
 Each view offers an inspection link appropriate to its argument: a household forecast, salt sources, its Units record, the known map, culture, companions, or a relationship. Household links select the affected controlled household; foreign relationship and location records preserve your commanded household. Reading or inspecting advice does not gather resources, attack, move a band, or spend an action. The player still chooses any order. Links re-evaluate the current situation before opening a record; an obsolete warning or unavailable target cannot silently select an unrelated household.
 

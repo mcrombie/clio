@@ -20,23 +20,32 @@ The starting chances below are for a non-hostile group with no prior positive co
 
 | Group | Successful contacts for a bond | Starting peaceful chance | Offering per attempt | Character |
 |---|---:|---:|---:|---|
-| Deer | 6 | 78% | 12 | Quick, cautious groups that often flee; weak retaliation |
+| Deer | Not available | Not available | No befriending action | Wild prey; cannot be domesticated under current livestock rules |
+| Goats | See encounter preview | See encounter preview | See encounter preview | Wild herds that can become milk-producing domestic goats |
 | Wolves | 10 | 66% | 18 | Wary packs; some are hostile and may pursue vulnerable bands |
 | Aurochs | 12 | 56% | 24 | Strong grazing herds; some protect their ground aggressively |
 | Mammoths | 18 | 28% | 42 | Tough family herds with dangerous charges |
 | Dragon | 40 | 0.6% | 90 | Very strong and territorial; peaceful bonds are exceptionally difficult |
 
-A bond converts the surviving group into a named domestic lineage; it does not create extra animals. Dogs help gathering and fighting, cattle produce food, deer help gathering, mammoths help gathering and fighting, and a bonded dragon adds fighting strength. All need care, deducted as chapters close:
+A bond converts the surviving group into a named domestic lineage; it does not create extra animals. With `LivestockEnabled`, domestic wolves are **Dogs** and domestic aurochs are **Cattle**. In MobileUnits play, dogs increase the owning band's strength when attacking animals by 1.5% per dog, up to 12%. Classic hunting instead receives 1.5 percentage points per dog, up to 12 points before its chance limit. Dogs provide no food, gathering bonus or strength bonus against human bands. Cattle and goats provide recurring milk food in proportion to their living count. Deer cannot be domesticated. Mammoths and dragons retain their separate companion effects. All domestic animals need care, deducted as turns close:
 
-| Companion | Capacity per animal per chapter |
+| Companion | Food care per animal per turn |
 |---|---:|
-| Deer | 0.05 |
 | Cattle | 0.06 |
+| Goats | 0.04 |
 | Dogs | 0.30 |
 | Mammoths | 0.65 |
 | Dragon | 8.00 |
 
 Companions follow their household during movement and retreat. A fatal encounter releases surviving companions immediately; chapter resolution also releases groups whose owner has died or disappeared. Release preserves their IDs and remembered contacts, allowing them to range through the land again. Growth is bounded by prototype species and household support limits; this is not an individual-animal breeding simulation.
+
+## Milk and meat
+
+Milk is passive food at turn end while the herd and its living owner share a hex. Each cow supplies `0.5 ? lineage Yield` food and each goat `0.25 ? lineage Yield`; every surviving animal contributes, without the previous output cap. Animal care remains a separate expense.
+
+Select an **owned cattle or goat herd** and choose **Slaughter** to trade part of it for meat. The preview names the animals taken and immediate food yield. This costs one action, requires the owner on the same hex, and removes 10% of the herd rounded down, with a minimum of one animal. Each slaughtered cow provides `18 ? Yield` food; each goat provides `8 ? Yield`. The remaining animals produce less milk and require less care. Dogs and other companions are not livestock slaughter targets. This command is distinct from attacking a wild herd.
+
+History records milk output, livestock meat and slaughter counts separately from hunting. Economy's food balance credits each inflow once. See [livestock rules](LIVESTOCK.md).
 
 ## Fighting, wounds and feuds
 
@@ -52,11 +61,15 @@ Events record actual movement, approaches, attacks, casualties, retreat, recover
 
 Known land is the default. It shows current groups in explored cells; it is not a last-seen intelligence system. Unknown groups have no map targets or inspector details. Both bands and animals animate between observed neighboring positions, with hit targets following the actual drawn counter. A move from an unknown origin or into an unseen destination is not animated. Opening a different world or changing the discovery view clears transition history.
 
-## Existing stories and V4 saves
+## Livestock compatibility
+
+`enable-livestock` records the transition to the current herd rules without spending an action or rerunning old outcomes. Before that command, earlier companion effects and milk caps remain part of the old replay. Afterward, dogs have hunting-only benefits, cattle and goats supply milk by head count, and slaughter is available. Any formerly domestic deer are released in place with their living count and identity preserved. New goats are added deterministically without advancing the existing random streams. The upgrade appears in History and adviser guidance, subject to adviser frequency.
+
+## Historical encounter format: V4 saves
 
 V1, V2 and V3 stories load under their original **Classic** rules. Their earlier seasons or historical pace, actions and command outcomes are preserved. Without an upgrade they retain the earlier format when saved. Classic hunting and taming keep their earlier behavior; the species table above describes mobile encounters.
 
-**Enable unit encounters** records a transition at the current point in the story. It does not spend a priority, advance the calendar, or replace the population and stocks. A subsequent save uses **CLIO-STORY-4**, retaining the original initial rule set followed by the explicit upgrade command. New stories start with MobileUnits and also use V4. The header records founding culture, historical pace and initial rules; commands retain the specific animal or band IDs selected for encounters.
+**Enable unit encounters** records a transition at the current point in the story. It does not spend a priority, advance the calendar, or replace the population and stocks. A subsequent save uses **CLIO-STORY-4**, retaining the original initial rule set followed by the explicit upgrade command. The original encounter release started new stories with MobileUnits and used V4; current stories include later explicitly recorded rule upgrades. The header records founding culture, historical pace and initial rules; commands retain the specific animal or band IDs selected for encounters.
 
 Loading reconstructs the game, encounter conditions and event journal before replacing the current campaign. Loaded games return to manual control without replaying old popups. Earlier executables cannot read V4. Keep the prior save if you want to continue using an older executable or the Classic rules; no reverse-upgrade command is implemented.
 

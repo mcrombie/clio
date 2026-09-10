@@ -23,11 +23,19 @@ Historical conditions are *Mild years*, *Lean years*, *Harsh years* and *Abundan
 
 Provisioning in historical mode measures **capacity to meet community needs**. It is not a warehouse of grain consumed unchanged for centuries. Gathering increases capacity; a hearth and cattle supply continuing output; people and animal care create recurring needs; the retention deduction abstracts the loss of capacity between chapters. The existing two-action structure, knowledge thresholds and demographic increments remain prototype chapter mechanics, rather than calibrated annual historical rates.
 
-## Visible domestic effects
+## Current livestock effects
+
+Current play measures food as **Food reserves**, consumed once per turn. With `LivestockEnabled`, cattle and goats provide milk food for every living animal, and their care also scales with herd size. Milk is `count ? Yield ? 0.5` for cattle and `count ? Yield ? 0.25` for goats, supplied while the herd and its living owner share a hex. Slaughter provides meat immediately but reduces future milk and care; it is an ordinary one-action order, not passive output.
+
+In MobileUnits play, each dog adds 1.5% to its band's strength when attacking animals, capped at 12%. Classic hunting instead gains 1.5 percentage points per dog, up to 12 points before the chance limit. Dogs consume 0.3 food per dog per turn and provide no food, gathering bonus or strength bonus against human bands. Deer cannot be domesticated. The recorded `enable-livestock` command activates these rules after old outcomes have replayed. [Current animal rules](UNIT_ENCOUNTERS.md), [milk and meat](LIVESTOCK.md).
+
+The journal records `MilkProduced`, `LivestockMeatProduced`, `LivestockSlaughtered` and `SlaughterActions`. The older `CattleFoodProduced` field remains a compatibility total for passive herd food; it is not a second inflow. Turn-end receipts supply actual milk totals, and slaughter uses the actual changes in the owning band's food and herd count.
+
+## Retained domestic effects before the livestock upgrade
 
 Living lineages persist while their successive animal generations change. Their numbers represent the current supported working groups.
 
-The table below describes the **Classic** rules retained by earlier saves. With **MobileUnits**, dogs assist gathering and fighting strength; targeted attacks resolve damage rather than a hunt-success roll. Deer and mammoths also aid gathering, mammoths and dragons contribute fighting strength, and every companion species has care costs. Mobile rules apply these effects even with the legacy calendar. [Current encounter and companion effects](UNIT_ENCOUNTERS.md).
+The table below describes the **Classic** rules retained by earlier saves before `enable-livestock`. With the original **MobileUnits** rules before that upgrade, dogs assist gathering and fighting strength; targeted attacks resolve damage rather than a hunt-success roll. Deer and mammoths also aid gathering, mammoths and dragons contribute fighting strength, and every companion species has care costs. These retained mobile rules apply before the livestock upgrade even with the legacy calendar. [Current encounter and companion effects](UNIT_ENCOUNTERS.md).
 
 | Effect | Classic historical modes | Classic seasonal stories |
 | --- | --- | --- |

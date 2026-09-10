@@ -66,7 +66,7 @@ namespace Clio.Desktop
             BackColor = Background; DoubleBuffered = true; KeyPreview = true; StartPosition = FormStartPosition.CenterScreen;
             game = new Game(startingSeed, startingStyle, startingAncestry, startingFour, startingName, startingCulture, startingPace, startingRules, startingPlaceNames, startingSalt, startingTribes, startingTerrainTravel, startingBandPersonalities, startingGatherings);
             journal = new StoryJournal(game);
-            EnableWoodForStory();
+            EnableWoodForStory(); EnableLivestockForStory();
             selected = game.Player.CellId; map.Focus(game.World.Cells[selected]); ArmMapCommandBand(game.Player.Id);
             ResetAdvisers();
             MouseLeave += delegate { hoverPoint = new PointF(-1, -1); HideMapHover(); map.OrderPreviewCell = -1; Invalidate(); };
@@ -493,7 +493,7 @@ namespace Clio.Desktop
             {
                 string verb = order.Split(':')[0];
                 if (verb != "forage" && verb != "salt" && verb != "wood" && verb != "camp" && verb != "split" && verb != "hunt" && verb != "tame" && verb != "wait" &&
-                    verb != "move" && verb != "attack-animal" && verb != "befriend-animal" && verb != "attack-band" &&
+                    verb != "move" && verb != "slaughter" && verb != "attack-animal" && verb != "befriend-animal" && verb != "attack-band" &&
                     verb != "gather-invite" && verb != "gather-aid" && verb != "gather-return") throw new InvalidDataException("Unknown band order.");
                 if (verb.StartsWith("gather-", StringComparison.Ordinal)) ValidateGatheringSyntax(order);
                 return target.IssueBandCommand(bandId, order);
@@ -503,6 +503,8 @@ namespace Clio.Desktop
             if (command == "enable-personalities") return target.EnableBandPersonalities();
             if (command == "enable-gatherings") return target.EnableGatherings();
             if (command == "enable-wood") return target.EnableWood();
+            if (command == "enable-livestock") return target.EnableLivestock();
+            if (command.StartsWith("slaughter:", StringComparison.Ordinal)) return target.SlaughterHerd(Int32.Parse(command.Substring(10), CultureInfo.InvariantCulture));
             if (command.StartsWith("attack-animal:", StringComparison.Ordinal)) return target.AttackAnimal(Int32.Parse(command.Substring(14), CultureInfo.InvariantCulture));
             if (command.StartsWith("befriend-animal:", StringComparison.Ordinal)) return target.BefriendAnimal(Int32.Parse(command.Substring(16), CultureInfo.InvariantCulture));
             if (command.StartsWith("attack-band:", StringComparison.Ordinal)) return target.AttackBand(Int32.Parse(command.Substring(12), CultureInfo.InvariantCulture));
@@ -628,7 +630,8 @@ namespace Clio.Desktop
         {
             if (commands.Count > MaximumCommands) throw new InvalidDataException("This prototype supports saving up to 20,000 commands per story.");
             // Initial rules and logged upgrades preserve the outcomes of earlier saves.
-            bool wood = game.WoodEnabled || commands.Contains("enable-wood");
+            bool livestock = game.LivestockEnabled || commands.Contains("enable-livestock");
+            bool wood = livestock || game.WoodEnabled || commands.Contains("enable-wood");
             bool decisionMetadata = HasStoryModeSave || wood;
             bool historicTime = startingPace != HistoryPace.LegacySeasons;
             bool gatherings = decisionMetadata || startingGatherings || commands.Contains("enable-gatherings");
@@ -638,7 +641,7 @@ namespace Clio.Desktop
             bool salt = tribes || startingSalt || commands.Contains("enable-salt");
             bool placeNames = salt || startingPlaceNames || commands.Contains("enable-place-names");
             bool units = placeNames || startingRules == SimulationRules.MobileUnits || commands.Contains("enable-encounters");
-            List<string> lines = new List<string> { wood ? "CLIO-STORY-12" : decisionMetadata ? "CLIO-STORY-11" : gatherings ? "CLIO-STORY-10" : personalities ? "CLIO-STORY-9" : terrain ? "CLIO-STORY-8" : tribes ? "CLIO-STORY-7" : salt ? "CLIO-STORY-6" : placeNames ? "CLIO-STORY-5" : units ? "CLIO-STORY-4" : historicTime ? "CLIO-STORY-3" : startingCulture == CultureTemplateId.Generated ? "CLIO-STORY-1" : "CLIO-STORY-2", startingSeed.ToString(CultureInfo.InvariantCulture), startingStyle.ToString(), startingAncestry.ToString(), startingFour ? "4" : "1", Convert.ToBase64String(Encoding.UTF8.GetBytes(startingName)) };
+            List<string> lines = new List<string> { livestock ? "CLIO-STORY-13" : wood ? "CLIO-STORY-12" : decisionMetadata ? "CLIO-STORY-11" : gatherings ? "CLIO-STORY-10" : personalities ? "CLIO-STORY-9" : terrain ? "CLIO-STORY-8" : tribes ? "CLIO-STORY-7" : salt ? "CLIO-STORY-6" : placeNames ? "CLIO-STORY-5" : units ? "CLIO-STORY-4" : historicTime ? "CLIO-STORY-3" : startingCulture == CultureTemplateId.Generated ? "CLIO-STORY-1" : "CLIO-STORY-2", startingSeed.ToString(CultureInfo.InvariantCulture), startingStyle.ToString(), startingAncestry.ToString(), startingFour ? "4" : "1", Convert.ToBase64String(Encoding.UTF8.GetBytes(startingName)) };
             if (units || historicTime || startingCulture != CultureTemplateId.Generated) lines.Add(startingCulture.ToString());
             if (units || historicTime) lines.Add(startingPace.ToString());
             if (units) lines.Add(startingRules.ToString());
@@ -698,7 +701,7 @@ namespace Clio.Desktop
                     if (!game.TerrainTravelEnabled && !game.IsOver && commands.Count < MaximumCommands) Command("enable-terrain");
                     if (!game.BandPersonalitiesEnabled && game.TribesEnabled && !game.IsOver && commands.Count < MaximumCommands) Command("enable-personalities");
                     if (!game.GatheringsEnabled && game.TribesEnabled && game.CulturalPlaceNames && !game.IsOver && commands.Count < MaximumCommands) Command("enable-gatherings");
-                    EnableWoodForStory();
+                    EnableWoodForStory(); EnableLivestockForStory();
                     status = "Story restored. " + Timeline.Label(game, game.Turn) + (semiautomatic ? ". Semiautomatic is paused; Continue story when ready." : ". Manual control.");
                 }
                 catch (Exception ex) { status = "Could not load story: " + ex.Message; }
@@ -710,8 +713,8 @@ namespace Clio.Desktop
             StopAutoplay(null);
             if (new FileInfo(path).Length > 2000000) throw new InvalidDataException("Story file is too large for this prototype.");
             string[] lines = File.ReadAllLines(path, Encoding.UTF8);
-            if (lines.Length < 6 || (lines[0] != "CLIO-STORY-1" && lines[0] != "CLIO-STORY-2" && lines[0] != "CLIO-STORY-3" && lines[0] != "CLIO-STORY-4" && lines[0] != "CLIO-STORY-5" && lines[0] != "CLIO-STORY-6" && lines[0] != "CLIO-STORY-7" && lines[0] != "CLIO-STORY-8" && lines[0] != "CLIO-STORY-9" && lines[0] != "CLIO-STORY-10" && lines[0] != "CLIO-STORY-11" && lines[0] != "CLIO-STORY-12")) throw new InvalidDataException("Unsupported story version.");
-            int headerLines = lines[0] == "CLIO-STORY-12" || lines[0] == "CLIO-STORY-11" ? 16 : lines[0] == "CLIO-STORY-10" ? 15 : lines[0] == "CLIO-STORY-9" ? 14 : lines[0] == "CLIO-STORY-8" ? 13 : lines[0] == "CLIO-STORY-7" ? 12 : lines[0] == "CLIO-STORY-6" ? 11 : lines[0] == "CLIO-STORY-5" ? 10 : lines[0] == "CLIO-STORY-4" ? 9 : lines[0] == "CLIO-STORY-3" ? 8 : lines[0] == "CLIO-STORY-2" ? 7 : 6;
+            if (lines.Length < 6 || (lines[0] != "CLIO-STORY-1" && lines[0] != "CLIO-STORY-2" && lines[0] != "CLIO-STORY-3" && lines[0] != "CLIO-STORY-4" && lines[0] != "CLIO-STORY-5" && lines[0] != "CLIO-STORY-6" && lines[0] != "CLIO-STORY-7" && lines[0] != "CLIO-STORY-8" && lines[0] != "CLIO-STORY-9" && lines[0] != "CLIO-STORY-10" && lines[0] != "CLIO-STORY-11" && lines[0] != "CLIO-STORY-12" && lines[0] != "CLIO-STORY-13")) throw new InvalidDataException("Unsupported story version.");
+            int headerLines = lines[0] == "CLIO-STORY-13" || lines[0] == "CLIO-STORY-12" || lines[0] == "CLIO-STORY-11" ? 16 : lines[0] == "CLIO-STORY-10" ? 15 : lines[0] == "CLIO-STORY-9" ? 14 : lines[0] == "CLIO-STORY-8" ? 13 : lines[0] == "CLIO-STORY-7" ? 12 : lines[0] == "CLIO-STORY-6" ? 11 : lines[0] == "CLIO-STORY-5" ? 10 : lines[0] == "CLIO-STORY-4" ? 9 : lines[0] == "CLIO-STORY-3" ? 8 : lines[0] == "CLIO-STORY-2" ? 7 : 6;
             if (lines.Length < headerLines) throw new InvalidDataException("The story header is incomplete.");
             StoryModeSaveState stagedMode = headerLines >= 16 ? ParseStoryModeSave(lines[15]) : new StoryModeSaveState();
             CultureTemplateId culture = CultureTemplateId.Generated;
@@ -785,7 +788,7 @@ namespace Clio.Desktop
                 journal = new StoryJournal(game); ClearNotices(false); inspectorPage = 0; inspectedBandId = 0; selectedAnimalId = -1; encounterChoice = false;
                 ClearReunionRoute(); ResetDiplomacy(); ResetGatheringUi(); ResetOpeningAnnouncement(); ResetEnding(); ResetStoryMode();
                 commands.Clear(); selected = game.Player.CellId; chronicleOffset = 0; languagePage = 0;
-                EnableWoodForStory();
+                EnableWoodForStory(); EnableLivestockForStory();
                 culturePage = 0; ResetEconomyPage(); ResetUnitsPage(); ClearMapTransient(); ArmMapCommandBand(game.Player.Id);
                 page = 0; map.Focus(game.World.Cells[selected]); map.Zoom = MapRenderer.RegionalZoom; map.Fog = true;
                 ResetAdvisers();

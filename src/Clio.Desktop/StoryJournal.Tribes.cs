@@ -55,6 +55,7 @@ namespace Clio.Desktop
                     Totals.Births += receipt.Births; Totals.Deaths += receipt.HungerLosses + receipt.ExposureLosses + receipt.SaltLosses;
                     Totals.HungerDeaths += receipt.HungerLosses; Totals.ExposureDeaths += receipt.ExposureLosses; Totals.SaltDeaths += receipt.SaltLosses;
                     Totals.CampFoodProduced += receipt.CampFood; Totals.CattleFoodProduced += receipt.CattleFood;
+                    if (game.LivestockEnabled) Totals.MilkProduced += receipt.MilkFood;
                     Totals.AnimalCarePaid += receipt.ActualAnimalCare; Totals.FoodSpoiled += receipt.Spoilage;
                     double supplied = Math.Min(receipt.Upkeep, Math.Max(0, receipt.StartingFood + receipt.CampFood + receipt.CattleFood - receipt.ActualAnimalCare));
                     Totals.FoodConsumed += supplied; Totals.FoodGained += receipt.CampFood + receipt.CattleFood;
@@ -136,6 +137,7 @@ namespace Clio.Desktop
             }
             RecordGatherings(game, before);
             RecordWood(game, before, command, ended);
+            RecordLivestockAction(game, before, command, ended);
             int explained = Totals.Births - priorBirths - (Totals.Deaths - priorDeaths) - (Totals.PopulationDeparted - priorDeparted);
             if (game.TribePopulation - populationBefore != explained) Totals.UnresolvedPopulationChanges += game.TribePopulation - populationBefore - explained;
             double recordedFood = Totals.FoodGained - priorIn - (Totals.FoodSpent - priorOut);
@@ -188,6 +190,7 @@ namespace Clio.Desktop
                 if (!foundedDomesticGroups.Add(animal.Id)) continue;
                 Totals.DomesticGroupsFounded++;
                 Band owner = game.Bands.Find(b => b.Id == animal.OwnerId); DomesticEconomy support = BandEconomy.DomesticEffects(game, owner);
+                if (game.LivestockEnabled) { RecordLivestockDomestication(game, owner, animal); continue; }
                 Notices.Add(new StoryNotice(nextId++, game.Turn, animal.CellId, StoryNoticeKind.Domestication, "New companions share the paths",
                     animal.Count + " " + AnimalName(animal.Kind).ToLowerInvariant() + " form a domestic lineage with " + owner.Name + ".",
                     "All of this band's companions: +" + Number((support.GatheringMultiplier - 1) * 100) + "% gathering; " + Number(support.CattleFood) + " cattle provisions; " + Number(support.AnimalCare) + " care each turn.",
