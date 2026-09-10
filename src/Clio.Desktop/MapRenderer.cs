@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -19,7 +19,7 @@ namespace Clio.Desktop
     }
     internal sealed partial class MapRenderer : IDisposable
     {
-        internal const double RegionalZoom = 7.0, MaximumZoom = 9.0;
+        internal const double RegionalZoom = 7.0, MaximumZoom = 18.0;
         public double Longitude, Latitude, Zoom = RegionalZoom;
         // A closer, gently oblique regional view keeps the land broad enough
         // to read. Planetary views retain the globe's original projection.

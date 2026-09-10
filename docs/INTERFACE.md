@@ -24,6 +24,8 @@ Population change includes births, deaths and departures from the tribe. Stable 
 
 ## Map details when requested
 
+In `zoom-31`, scroll the mouse wheel in or out to change map scale. The closest view now reaches twice the previous maximum magnification. The starting view and farthest zoom-out are unchanged.
+
 The top map toolbar uses symbols for map controls and useful-place highlights. Hover identifies each control and its current state. The existing layers, known-land/atlas choice and food, salt and exploration information remain available.
 
 The selected-band panel starts closed. Open it from the band badge when you need that band's supplies, actions, personality or reunion information, then close it to restore space. The compact bottom action icons retain their explanatory tooltips and shortcuts.
@@ -46,4 +48,4 @@ An adviser cue takes precedence over a routine event cue. Every event remains in
 
 ## Delivery status
 
-This design iteration is compiled for the Windows desktop prototype. No new regression tests, screenshot renders or playthrough checks are being run for `quiet-30`, as requested. Earlier validation records describe their own builds and are not verification of this interface pass.
+This design iteration is compiled for the Windows desktop prototype. No new regression tests, screenshot renders or playthrough checks are being run for `zoom-31`, as requested. Earlier validation records describe their own builds and are not verification of this interface pass.

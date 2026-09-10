@@ -85,7 +85,7 @@ namespace Clio.Desktop
             // A small symbol key; the full legend is one click away.
             DrawFloatingMapPanel(g, new RectangleF(24, 166, 274, 50));
             MapIconButton(g, "globe", new RectangleF(32, 174, 36, 34), delegate { ToggleMapMenu(1); }, mapMenu == 1, false,
-                "Map views\nChoose terrain, food, regions, speech or polities; toggle the grid and known land.");
+                "Map views\nChoose terrain, food, regions, speech or polities; toggle the grid and known land. Scroll over terrain to zoom in or out; drag to roam.");
             MapIconButton(g, "locate", new RectangleF(76, 174, 36, 34), FocusCommandBandQuietly, false, false,
                 "Find your band [Home]\nCenter the map on the selected band. Click its banner to inspect it.");
             MapIconButton(g, "leaf", new RectangleF(120, 174, 36, 34), delegate { CloseMapMenus(); map.Layer = map.Layer == 1 ? 0 : 1; Invalidate(); }, map.Layer == 1, false,
