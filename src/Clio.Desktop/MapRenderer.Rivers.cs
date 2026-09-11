@@ -108,20 +108,18 @@ namespace Clio.Desktop
             {
                 // The course still passes through each true shared corner. Low
                 // tension softens angular joins without moving it into hex centers.
-                DrawRiverBank(g, path, width * 4.1f, Color.FromArgb(47, 164, 185, 121), .8f);
-                DrawRiverBank(g, path, width * 2.75f, Color.FromArgb(86, 141, 169, 104), .6f);
-                DrawRiverBank(g, path, width * 1.31f, Color.FromArgb(119, 136, 156, 101), .4f);
-                DrawRiverBank(g, path, width * .72f, Color.FromArgb(145, 183, 177, 126), .2f);
-                using (Pen shadow = new Pen(Color.FromArgb(215, 43, 92, 97), width + 1.1f) { StartCap = LineCap.Round, EndCap = LineCap.Round }) g.DrawPath(shadow, path);
-                using (Pen water = new Pen(Color.FromArgb(244, 96, 160, 171), width) { StartCap = LineCap.Round, EndCap = LineCap.Round }) g.DrawPath(water, path);
-                using (Pen glint = new Pen(Color.FromArgb(61, 187, 221, 206), Math.Max(.6f, width * .25f))) g.DrawPath(glint, path);
+                DrawRiverBank(g, path, width * 1.6f, Color.FromArgb(50, 174, 190, 156), .55f);
+                DrawRiverBank(g, path, width * .76f, Color.FromArgb(178, 235, 225, 199), .22f);
+                using (Pen banks = new Pen(Color.FromArgb(193, 72, 92, 87), width + 1.1f) { StartCap = LineCap.Round, EndCap = LineCap.Round }) g.DrawPath(banks, path);
+                using (Pen water = new Pen(Color.FromArgb(235, 157, 187, 191), width) { StartCap = LineCap.Round, EndCap = LineCap.Round }) g.DrawPath(water, path);
+                using (Pen current = new Pen(Color.FromArgb(104, 227, 233, 219), Math.Max(.5f, width * .22f))) g.DrawPath(current, path);
                 if (width > 2.4f)
                     for (int i = 1; i < points.Length; i++)
                     {
                         PointF a = points[i - 1], b = points[i]; float dx = b.X - a.X, dy = b.Y - a.Y;
                         float length = (float)Math.Sqrt(dx * dx + dy * dy); if (length < 3) continue;
                         PointF at = new PointF(a.X + dx * .46f, a.Y + dy * .46f);
-                        using (Pen ripple = new Pen(Color.FromArgb(116, 218, 231, 207), .7f))
+                        using (Pen ripple = new Pen(Color.FromArgb(80, 64, 100, 109), .65f))
                         {
                             g.DrawLine(ripple, at.X - dx / length * width * .8f - dy / length * width * .18f, at.Y - dy / length * width * .8f + dx / length * width * .18f,
                                 at.X + dx / length * width * .6f - dy / length * width * .18f, at.Y + dy / length * width * .6f + dx / length * width * .18f);

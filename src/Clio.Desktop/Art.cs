@@ -7,8 +7,13 @@ namespace Clio.Desktop
 {
     internal static class Art
     {
-        public static readonly Color Ink = Color.FromArgb(234, 231, 215), Muted = Color.FromArgb(151, 163, 158), Gold = Color.FromArgb(216, 180, 112);
-        public static readonly Color Background = Color.FromArgb(13, 22, 26), PanelColor = Color.FromArgb(26, 37, 40), Border = Color.FromArgb(62, 76, 73);
+        public static bool PaperMode { get; set; }
+        public static Color Ink { get { return PaperMode ? MapPaper.Ink : Color.FromArgb(234, 231, 215); } }
+        public static Color Muted { get { return PaperMode ? MapPaper.MutedInk : Color.FromArgb(151, 163, 158); } }
+        public static Color Gold { get { return PaperMode ? MapPaper.Russet : Color.FromArgb(216, 180, 112); } }
+        public static Color Background { get { return PaperMode ? MapPaper.Ground : Color.FromArgb(13, 22, 26); } }
+        public static Color PanelColor { get { return PaperMode ? MapPaper.Paper : Color.FromArgb(26, 37, 40); } }
+        public static Color Border { get { return PaperMode ? MapPaper.Rule : Color.FromArgb(62, 76, 73); } }
         private static readonly Bitmap grain = MakeGrain();
         private static Font GetFont(float size, bool serif, bool bold)
         {
@@ -45,6 +50,7 @@ namespace Clio.Desktop
         { using (TextureBrush texture = new TextureBrush(grain, WrapMode.Tile)) g.FillRectangle(texture, bounds); }
         public static void Panel(Graphics g, RectangleF bounds, Color color, bool ornament)
         {
+            if (PaperMode) { MapPaper.Surface(g, bounds, ornament); return; }
             using (LinearGradientBrush brush = new LinearGradientBrush(bounds, Mix(color, Color.FromArgb(74, 82, 76), 0.10), Mix(color, Color.Black, 0.12), 90)) g.FillRectangle(brush, bounds);
             Grain(g, bounds);
             using (Pen pen = new Pen(Color.FromArgb(130, 67, 81, 75), 1)) g.DrawRectangle(pen, bounds.X + .5f, bounds.Y + .5f, bounds.Width - 1, bounds.Height - 1);

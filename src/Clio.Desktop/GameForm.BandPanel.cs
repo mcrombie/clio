@@ -37,7 +37,7 @@ namespace Clio.Desktop
             if (box.IsEmpty || BlockingSheet) return;
             Band actor = BandPanelActor;
             buttons.RemoveAll(button => button.Bounds.IntersectsWith(box));
-            Art.Fill(g, Color.FromArgb(58, 0, 0, 0), box.X + 4, box.Y + 4, box.Width, box.Height);
+            Art.Fill(g, Art.PaperMode ? Color.FromArgb(20, MapPaper.Ink) : Color.FromArgb(58, 0, 0, 0), box.X + 4, box.Y + 4, box.Width, box.Height);
             Art.Panel(g, box, Color.FromArgb(22, 34, 37), true);
             Typography.Label(g, actor == null ? "Choose your household" : "Selected band", new RectangleF(box.X + 15, box.Y + 7, 238, 20), 11.5f, Art.Gold, .6f);
             Button(g, "\u00d7", box.Right - 35, box.Y + 9, 26, 26, CloseBandDetails, false, false);
@@ -88,7 +88,7 @@ namespace Clio.Desktop
             DrawBandPanelButtons(g, box, game.TribesEnabled);
         }
 
-        private static readonly Color BandPanelWarning = Color.FromArgb(221, 145, 113);
+        private static Color BandPanelWarning { get { return Art.PaperMode ? MapPaper.Warning : Color.FromArgb(221, 145, 113); } }
 
         private string BandPanelReunionLabel(Band actor)
         {

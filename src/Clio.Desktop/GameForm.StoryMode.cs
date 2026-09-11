@@ -185,7 +185,7 @@ namespace Clio.Desktop
         private void DrawStoryModeOverlay(Graphics g)
         {
             if (!StoryModeBlocking) return;
-            using (Brush shade = new SolidBrush(Color.FromArgb(205, 5, 13, 16))) g.FillRectangle(shade, 0, 0, 1600, 960);
+            using (Brush shade = new SolidBrush(Art.PaperMode ? Color.FromArgb(110, MapPaper.MutedInk) : Color.FromArgb(205, 5, 13, 16))) g.FillRectangle(shade, 0, 0, 1600, 960);
             buttons.Clear();
             if (playModeOpen) { DrawPlayModeChoice(g); return; }
             StoryEvent story = pendingStoryEvent;
@@ -206,7 +206,8 @@ namespace Clio.Desktop
             {
                 int option = i; StoryOption choice = story.Options[i]; RectangleF box = new RectangleF(186 + i * (width + 18), 504, width, 267);
                 bool hoverChoice = box.Contains(hoverPoint);
-                Art.Panel(g, box, hoverChoice ? Color.FromArgb(56, 60, 47) : Color.FromArgb(29, 41, 44), false);
+                if (Art.PaperMode) MapPaper.Surface(g, box, false, hoverChoice);
+                else Art.Panel(g, box, hoverChoice ? Color.FromArgb(56, 60, 47) : Color.FromArgb(29, 41, 44), false);
                 if (hoverChoice) using (Pen pen = new Pen(Art.Gold, 1.5f)) g.DrawRectangle(pen, box.X, box.Y, box.Width, box.Height);
                 Typography.Label(g, "Choice " + (i + 1) + " / " + choice.DurationTurns + " turns", new RectangleF(box.X + 18, box.Y + 12, width - 36, 22), 11, Art.Gold, .5f);
                 Typography.Line(g, choice.Title, new RectangleF(box.X + 15, box.Y + 41, width - 30, 39), 26, Art.Ink, TypeRole.Heading, true);
@@ -234,7 +235,8 @@ namespace Clio.Desktop
 
         private void DrawPlayModeCard(Graphics g, RectangleF box, string title, string description, string icon, bool selectedMode, Action choose)
         {
-            Art.Panel(g, box, selectedMode || box.Contains(hoverPoint) ? Color.FromArgb(47, 56, 49) : Color.FromArgb(29, 41, 44), false);
+            if (Art.PaperMode) MapPaper.Surface(g, box, false, selectedMode || box.Contains(hoverPoint));
+            else Art.Panel(g, box, selectedMode || box.Contains(hoverPoint) ? Color.FromArgb(47, 56, 49) : Color.FromArgb(29, 41, 44), false);
             Art.Icon(g, icon, box.X + 20, box.Y + 19, 31, Art.Gold);
             Typography.Line(g, title, new RectangleF(box.X + 68, box.Y + 13, box.Width - 89, 43), 31, Art.Ink, TypeRole.Heading, true);
             Typography.Draw(g, description, new RectangleF(box.X + 23, box.Y + 76, box.Width - 46, box.Height - 124), 22, Art.Ink, TypeRole.Annotation);

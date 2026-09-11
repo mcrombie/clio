@@ -223,7 +223,7 @@ namespace Clio.Desktop
                 RectangleF box = new RectangleF(mark.Position.X - mark.Width * .5f, mark.Position.Y - mark.Height * .5f, mark.Width, mark.Height);
                 UnitArt.DrawAnimalCounter(g, mark.Animal, EncounterRules.Animal(game, mark.Animal), box,
                     mark.Animal.Id == SelectedAnimalId, mark.Detailed, game.Rules == SimulationRules.MobileUnits);
-                if (mark.Moving) DrawMotionMark(g, mark.Position, mark.Width, mark.Height, mark.Animal.Domestic ? Art.Gold : Color.FromArgb(188, 216, 204));
+                if (mark.Moving) DrawMotionMark(g, mark.Position, mark.Width, mark.Height, mark.Animal.Domestic ? UnitArt.MapAccent : UnitArt.MapRoute);
                 AddTarget(animalTargets, box, mark.Animal.Id);
                 if (mark.Animal.Id == SelectedAnimalId) AddTarget(animalTargets, new RectangleF(box.X - 20, box.Y - 19, box.Width + 40, 17), mark.Animal.Id);
             }
@@ -235,24 +235,24 @@ namespace Clio.Desktop
         {
             Band band = mark.Band; float x = mark.Position.X, y = mark.Position.Y;
             int identity = game.TribeOf(band.Id);
-            Color color = IdentityArt.ColorFor(identity);
+            Color color = UnitArt.MapIdentity(identity);
             bool commanded = band.Id == CommandedBandId && game.CanControlBand(band.Id), inspecting = band.Id == SelectedBandId;
             RectangleF target = mark.Detailed ? new RectangleF(x - 25, y - 56, 63, 64) : new RectangleF(x - 14, y - 26, 28, 30);
             if (mark.Detailed) UnitArt.DrawBandParty(g, band, new PointF(x, y), (float)Math.Min(1.04, .69 + Zoom * .065), inspecting, commanded, mark.Moving, identity);
             else
             {
                 if (inspecting || commanded)
-                    using (Pen selected = new Pen(Color.FromArgb(225, commanded ? Art.Gold : color), 2)) g.DrawEllipse(selected, x - 15, y - 5, 30, 9);
+                    using (Pen selected = new Pen(Color.FromArgb(225, commanded ? UnitArt.MapAccent : color), 2)) g.DrawEllipse(selected, x - 15, y - 5, 30, 9);
                 IdentityArt.DrawEmblem(g, identity, new RectangleF(x - 13, y - 26, 26, 30), true);
                 if (commanded)
-                    using (Brush command = new SolidBrush(Art.Gold))
+                    using (Brush command = new SolidBrush(UnitArt.MapAccent))
                         g.FillPolygon(command, new[] { new PointF(x + 10, y - 27), new PointF(x + 13, y - 24), new PointF(x + 10, y - 21), new PointF(x + 7, y - 24) });
             }
             if (game.Rules == SimulationRules.MobileUnits)
             {
                 UnitProfile profile = EncounterRules.Band(game, band);
                 if (profile.Hostile)
-                    using (Pen warning = new Pen(Color.FromArgb(235, 236, 139, 116), 1.7f))
+                    using (Pen warning = new Pen(UnitArt.MapDanger, 1.7f))
                     {
                         g.DrawLine(warning, x - 18, y - 37, x - 7, y - 26);
                         g.DrawLine(warning, x - 18, y - 26, x - 7, y - 37);
@@ -260,8 +260,8 @@ namespace Clio.Desktop
                 if (profile.Wounds > 0 || inspecting || commanded)
                 {
                     float fraction = profile.MaxHealth <= 0 ? 0 : (float)profile.CurrentHealth / profile.MaxHealth;
-                    using (Pen empty = new Pen(Color.FromArgb(120, 34, 48, 45), 3)) g.DrawLine(empty, x - 17, y + 5, x + 17, y + 5);
-                    using (Pen life = new Pen(profile.Wounds > 0 ? Color.FromArgb(231, 163, 130) : Color.FromArgb(154, 196, 166), 2)) g.DrawLine(life, x - 17, y + 5, x - 17 + 34 * fraction, y + 5);
+                    using (Pen empty = new Pen(Color.FromArgb(90, UnitArt.MapInk), 3)) g.DrawLine(empty, x - 17, y + 5, x + 17, y + 5);
+                    using (Pen life = new Pen(profile.Wounds > 0 ? UnitArt.MapDanger : UnitArt.MapHealthy, 2)) g.DrawLine(life, x - 17, y + 5, x - 17 + 34 * fraction, y + 5);
                 }
             }
             AddTarget(bandTargets, target, band.Id);
@@ -272,13 +272,11 @@ namespace Clio.Desktop
                 RectangleF label = new RectangleF(x - 96, y - (mark.Detailed ? 82 : 51), 192, 24);
                 if (!commanded && unitLabelBounds.Any(b => b.IntersectsWith(label))) return;
                 unitLabelBounds.Add(label);
-                using (LinearGradientBrush plaque = new LinearGradientBrush(label, Color.Transparent, Color.FromArgb(222, 18, 32, 35), 0f))
-                {
-                    plaque.InterpolationColors = new ColorBlend { Colors = new[] { Color.Transparent, Color.FromArgb(222, 18, 32, 35), Color.FromArgb(222, 18, 32, 35), Color.Transparent }, Positions = new[] { 0f, .18f, .82f, 1f } };
-                    g.FillRectangle(plaque, label);
-                }
+                using (Brush plaque = new SolidBrush(Color.FromArgb(242, UnitArt.MapPaper))) g.FillRectangle(plaque, label);
+                using (Pen rule = new Pen(Color.FromArgb(145, color), .8f))
+                { g.DrawLine(rule, label.X + 8, label.Bottom - 1, label.Right - 8, label.Bottom - 1); g.DrawLine(rule, label.X + 2, label.Y + 4, label.X + 2, label.Bottom - 4); }
                 if (commanded)
-                    using (Brush command = new SolidBrush(Art.Gold))
+                    using (Brush command = new SolidBrush(UnitArt.MapAccent))
                         g.FillPolygon(command, new[] { new PointF(label.X + 15, label.Y + 8), new PointF(label.X + 19, label.Y + 12), new PointF(label.X + 15, label.Y + 16), new PointF(label.X + 11, label.Y + 12) });
                 Typography.Line(g, band.Name, new RectangleF(label.X + (commanded ? 25 : 10), label.Y, label.Width - (commanded ? 35 : 20), label.Height), 15, color, TypeRole.Heading, true, StringAlignment.Center);
                 AddTarget(bandTargets, label, band.Id);

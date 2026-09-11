@@ -38,7 +38,6 @@ namespace Clio.Desktop
         private readonly Dictionary<Vec3, Color> vertexColors = new Dictionary<Vec3, Color>();
         private readonly Dictionary<int, ProjectedCell> projected = new Dictionary<int, ProjectedCell>();
         private readonly TerrainArt terrain = new TerrainArt();
-        private readonly Bitmap mist = TerrainArt.CreateMist();
         private Bitmap cachedTerrain;
         private Bitmap backdrop, fogImage;
         private byte[] backdropPixels;
@@ -128,8 +127,19 @@ namespace Clio.Desktop
                 using (Graphics bg = Graphics.FromImage(backdrop))
                 {
                     bg.TranslateTransform(-Bounds.X, -Bounds.Y);
-                    using (LinearGradientBrush wash = new LinearGradientBrush(Bounds, Color.FromArgb(20, 33, 43), Color.FromArgb(8, 17, 26), 75)) bg.FillRectangle(wash, Bounds);
-                    using (TextureBrush clouds = new TextureBrush(mist, WrapMode.Tile)) { clouds.ScaleTransform(2.5f, 2.5f); bg.FillRectangle(clouds, Bounds); }
+                    using (GraphicsPath sheet = new GraphicsPath())
+                    {
+                        sheet.AddRectangle(Bounds);
+                        using (PathGradientBrush wash = new PathGradientBrush(sheet))
+                        {
+                            wash.CenterPoint = new PointF(Bounds.X + Bounds.Width * .49f, Bounds.Y + Bounds.Height * .43f);
+                            wash.CenterColor = Color.FromArgb(242, 233, 211);
+                            wash.SurroundColors = new[] { Color.FromArgb(220, 202, 164) };
+                            wash.FocusScales = new PointF(.22f, .25f);
+                            bg.FillPath(wash, sheet);
+                        }
+                    }
+                    MapPaper.Texture(bg, Bounds);
                     DrawChartLines(bg);
                 }
                 BitmapData data = backdrop.LockBits(new Rectangle(0, 0, backdrop.Width, backdrop.Height), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
@@ -200,41 +210,27 @@ namespace Clio.Desktop
                 g.Restore(landState);
             }
             if (Layer != 0) DrawRivers(g, game);
-            if (Grid) using (Pen grid = new Pen(Color.FromArgb(83, 233, 226, 187), .8f)) foreach (ProjectedCell p in Visible) if (Known(game, p.Cell.Id)) g.DrawPolygon(grid, p.Polygon);
+            MapPaper.Texture(g, Bounds);
+            if (Grid) using (Pen grid = new Pen(Color.FromArgb(85, MapPaper.MutedInk), .7f)) foreach (ProjectedCell p in Visible) if (Known(game, p.Cell.Id)) g.DrawPolygon(grid, p.Polygon);
             if (Layer == 2) DrawRegionBorders(g, game);
             if (Fog) DrawMistBoundary(g, game); else DrawAtmosphere(g);
-            using (LinearGradientBrush fade = new LinearGradientBrush(new RectangleF(Bounds.X, Bounds.Bottom - 104, Bounds.Width, 105), Color.Transparent, Color.FromArgb(194, 12, 24, 31), 90)) g.FillRectangle(fade, Bounds.X, Bounds.Bottom - 104, Bounds.Width, 104);
         }
         private Color Shade(Cell cell, Game game, List<Band> bands)
         {
             Color color = TerrainColor(cell.Terrain);
             double warm = .5 + .5 * Math.Sin(cell.Center.X * 13 + cell.Center.Z * 7 + game.Seed * .001);
-            color = Art.Mix(color, Color.FromArgb(215, 194, 123), warm * .08);
+            color = Art.Mix(color, Color.FromArgb(239, 226, 194), warm * .13);
             if (cell.IsLand)
             {
-                if (game.Season == "Autumn") color = Art.Mix(color, Color.FromArgb(177, 137, 68), cell.Terrain == Terrain.Forest ? .2 : .1);
-                if (game.Season == "Winter" && cell.Temperature < .52) color = Art.Mix(color, Color.FromArgb(198, 213, 207), .22 + (.52 - cell.Temperature) * .6);
-                // Low relief is lit from the upper left. Only observed neighbors
-                // contribute: an unseen mountain must not cast a revealing shade.
-                double slope = 0; int samples = 0;
-                Vec3 light = (right * -.65 + up * .75).Normalized();
-                foreach (int id in cell.Neighbors)
-                {
-                    if (!Known(game, id)) continue;
-                    Cell neighbor = game.World.Cells[id];
-                    Vec3 direction = (neighbor.Center - cell.Center).Normalized();
-                    slope += (cell.Elevation - neighbor.Elevation) * Vec3.Dot(direction, light); samples++;
-                }
-                if (samples > 0 && Layer == 0)
-                {
-                    double exposure = Math.Max(-.18, Math.Min(.20, slope / samples * 2.4));
-                    color = exposure > 0 ? Art.Mix(color, Color.FromArgb(236, 222, 156), exposure) : Art.Mix(color, Color.FromArgb(35, 65, 48), -exposure);
-                }
+                if (game.Season == "Autumn") color = Art.Mix(color, Color.FromArgb(209, 182, 135), cell.Terrain == Terrain.Forest ? .17 : .08);
+                if (game.Season == "Winter" && cell.Temperature < .52) color = Art.Mix(color, Color.FromArgb(239, 235, 220), .22 + (.52 - cell.Temperature) * .6);
+                // Relief is conveyed by the draughtsman's lines and hatching,
+                // with a light watercolor wash instead of simulated sunlight.
             }
             else if (Layer == 0 && cell.Terrain == Terrain.Ocean)
-                color = Art.Mix(color, Color.FromArgb(16, 49, 82), Math.Min(.48, Math.Max(0, -cell.Elevation) * .65));
+                color = Art.Mix(color, Color.FromArgb(151, 178, 181), Math.Min(.26, Math.Max(0, -cell.Elevation) * .4));
             Band orderBand = game.Bands.FirstOrDefault(b => b.Id == CommandedBandId && game.CanControlBand(b.Id)) ?? game.TribeLeaderBand ?? game.Player;
-            if (Layer == 1 && cell.IsLand) color = Art.Mix(Color.FromArgb(142, 84, 58), Color.FromArgb(141, 182, 106), Math.Min(1, game.ForageYield(cell.Id, orderBand) / 125));
+            if (Layer == 1 && cell.IsLand) color = Art.Mix(Color.FromArgb(223, 190, 158), Color.FromArgb(182, 199, 156), Math.Min(1, game.ForageYield(cell.Id, orderBand) / 125));
             if (Layer == 2 && cell.IsLand) color = Art.Mix(color, RegionColor(cell.RegionId), game.TerrainTravelEnabled ? .32 : .68);
             if ((Layer == 3 || Layer == 4) && cell.IsLand)
             {
@@ -242,10 +238,10 @@ namespace Clio.Desktop
                 double distance = band == null ? 2 : 1 - Vec3.Dot(cell.Center, game.World.Cells[band.CellId].Center);
                 double range = Layer == 4 ? .014 : .045;
                 Color ink = band == null ? color : Layer == 4 ? IdentityArt.ColorFor(game.TribeOf(band.Id)) : RegionColor(band.LanguageId + 4);
-                color = distance < range ? Art.Mix(color, ink, .2 + .5 * (1 - distance / range)) : Art.Mix(color, Color.FromArgb(46, 66, 65), .48);
+                color = distance < range ? Art.Mix(color, ink, .16 + .28 * (1 - distance / range)) : Art.Mix(color, MapPaper.Paper, .35);
             }
             double depth = Math.Max(0, Vec3.Dot(cell.Center, forward));
-            return Art.Mix(color, Color.FromArgb(18, 40, 50), Math.Pow(1 - depth, 2) * .56);
+            return Art.Mix(color, Color.FromArgb(230, 216, 188), Math.Pow(1 - depth, 2) * .46);
         }
         private void DrawShorelines(Graphics g, Game game)
         {
@@ -259,11 +255,22 @@ namespace Clio.Desktop
                     PointF pa = Project(a), pb = Project(b); float dx = pb.X - pa.X, dy = pb.Y - pa.Y, len = (float)Math.Sqrt(dx * dx + dy * dy); if (len < 2) continue;
                     float bend = Math.Min(6, len * .09f) * (float)Math.Sin(p.Cell.Id * 5.3 + i);
                     PointF[] coast = { pa, new PointF(pa.X + dx * .33f - dy / len * bend, pa.Y + dy * .33f + dx / len * bend), new PointF(pa.X + dx * .66f + dy / len * bend * .6f, pa.Y + dy * .66f - dx / len * bend * .6f), pb };
-                    using (Pen shelf = new Pen(Color.FromArgb(48, 78, 168, 183), Math.Min(27, len * .42f)) { LineJoin = LineJoin.Round, StartCap = LineCap.Round, EndCap = LineCap.Round }) g.DrawCurve(shelf, coast, .45f);
-                    using (Pen shallows = new Pen(Color.FromArgb(78, 126, 197, 195), Math.Min(16, len * .25f)) { LineJoin = LineJoin.Round, StartCap = LineCap.Round, EndCap = LineCap.Round }) g.DrawCurve(shallows, coast, .45f);
-                    using (Pen beach = new Pen(Color.FromArgb(134, 220, 209, 159), Math.Min(7, len * .10f)) { LineJoin = LineJoin.Round }) g.DrawCurve(beach, coast, .45f);
-                    using (Pen wetSand = new Pen(Color.FromArgb(140, 190, 189, 143), Math.Min(3.8f, len * .055f)) { LineJoin = LineJoin.Round }) g.DrawCurve(wetSand, coast, .45f);
-                    using (Pen foam = new Pen(Color.FromArgb(168, 237, 239, 214), .75f) { DashPattern = new[] { 7f, 2f, 3f, 2f } }) g.DrawCurve(foam, coast, .45f);
+                    using (Pen beach = new Pen(Color.FromArgb(141, 234, 225, 200), Math.Min(7, len * .12f)) { LineJoin = LineJoin.Round }) g.DrawCurve(beach, coast, .45f);
+                    using (Pen ink = new Pen(Color.FromArgb(176, 82, 86, 69), .85f) { LineJoin = LineJoin.Round }) g.DrawCurve(ink, coast, .45f);
+                    // Fine parallel soundings sit on the observed water side.
+                    ProjectedCell sea;
+                    if (projected.TryGetValue(adjacent, out sea))
+                    {
+                        PointF mid = Lerp(pa, pb, .5f);
+                        float sx = sea.Center.X - mid.X, sy = sea.Center.Y - mid.Y;
+                        float sl = Math.Max(1, (float)Math.Sqrt(sx * sx + sy * sy));
+                        for (int ring = 1; ring <= 2; ring++)
+                        {
+                            float offset = Math.Min(3, len * .06f) * ring;
+                            PointF[] sounding = coast.Select(point => new PointF(point.X + sx / sl * offset, point.Y + sy / sl * offset)).ToArray();
+                            using (Pen pen = new Pen(Color.FromArgb(ring == 1 ? 74 : 43, MapPaper.Blue), .6f)) g.DrawCurve(pen, sounding, .45f);
+                        }
+                    }
                 }
             }
         }
@@ -317,14 +324,19 @@ namespace Clio.Desktop
         {
             if (Zoom > 1.5) return;
             float cx = Bounds.X + Bounds.Width * .5f, cy = Bounds.Y + Bounds.Height * .51f;
-            for (int i = 0; i < 8; i++) using (Pen pen = new Pen(Color.FromArgb(3 + i, 131, 183, 191), 1.5f)) g.DrawEllipse(pen, cx - radius - i, cy - radius * .996647f - i, radius * 2 + i * 2, radius * 1.993294f + i * 2);
+            for (int i = 1; i <= 2; i++) using (Pen pen = new Pen(Color.FromArgb(85, MapPaper.MutedInk), .7f)) g.DrawEllipse(pen, cx - radius - i * 4, cy - radius * .996647f - i * 4, radius * 2 + i * 8, radius * 1.993294f + i * 8);
         }
         private void DrawChartLines(Graphics g)
         {
-            using (Pen pen = new Pen(Color.FromArgb(12, 156, 189, 191), .7f) { DashPattern = new[] { 2f, 7f } })
+            using (Pen pen = new Pen(Color.FromArgb(12, MapPaper.MutedInk), .6f))
             {
-                for (int y = 178; y < Bounds.Bottom; y += 90) g.DrawLine(pen, Bounds.Left, y, Bounds.Right, y);
-                for (int x = 320; x < Bounds.Right; x += 90) g.DrawLine(pen, x, Bounds.Top, x, Bounds.Bottom);
+                float x = Bounds.Left + Bounds.Width * .83f, y = Bounds.Top + Bounds.Height * .23f;
+                for (int i = 0; i < 8; i++)
+                {
+                    double angle = i * Math.PI / 8;
+                    float dx = (float)Math.Cos(angle) * Bounds.Width * 2, dy = (float)Math.Sin(angle) * Bounds.Width * 2;
+                    g.DrawLine(pen, x - dx, y - dy, x + dx, y + dy);
+                }
             }
         }
         private void DrawSelection(Graphics g, Game game, int selected)
@@ -333,13 +345,13 @@ namespace Clio.Desktop
             if (actor != null && game.ActionsFor(actor.Id) > 0 && !game.IsOver) foreach (int id in game.World.Cells[actor.CellId].Neighbors)
             {
                 ProjectedCell pc; if (!projected.TryGetValue(id, out pc) || !game.Explored.Contains(id) || !pc.Cell.IsLand || pc.Depth < .1 || game.TerrainTravelEnabled && TravelRules.MoveCost(game, actor, actor.CellId, id) > game.ActionsFor(actor.Id)) continue;
-                using (Pen line = new Pen(Color.FromArgb(87, 216, 230, 185), 1) { DashPattern = new[] { 2f, 5f } }) g.DrawPolygon(line, pc.Polygon);
+                using (Pen line = new Pen(Color.FromArgb(123, MapPaper.MutedInk), .85f) { DashPattern = new[] { 3f, 6f } }) g.DrawPolygon(line, pc.Polygon);
             }
             ProjectedCell p; if (!projected.TryGetValue(selected, out p) || !Known(game, selected)) return;
-            using (Brush glow = new SolidBrush(Color.FromArgb(14, 254, 227, 158))) g.FillPolygon(glow, p.Polygon);
-            using (Pen halo = new Pen(Color.FromArgb(45, Art.Gold), 6)) g.DrawPolygon(halo, p.Polygon);
-            using (Pen line = new Pen(Color.FromArgb(231, 218, 181, 111), 1.6f)) g.DrawPolygon(line, p.Polygon);
-            foreach (PointF point in p.Polygon) using (Brush dot = new SolidBrush(Color.FromArgb(232, 226, 195, 143))) g.FillEllipse(dot, point.X - 1.5f, point.Y - 1.5f, 3, 3);
+            using (Brush wash = new SolidBrush(Color.FromArgb(25, 161, 111, 39))) g.FillPolygon(wash, p.Polygon);
+            using (Pen margin = new Pen(Color.FromArgb(166, MapPaper.Paper), 3.8f)) g.DrawPolygon(margin, p.Polygon);
+            using (Pen line = new Pen(Color.FromArgb(220, MapPaper.Russet), 1.4f)) g.DrawPolygon(line, p.Polygon);
+            foreach (PointF point in p.Polygon) using (Brush dot = new SolidBrush(MapPaper.Russet)) g.FillEllipse(dot, point.X - 1.3f, point.Y - 1.3f, 2.6f, 2.6f);
         }
         private void DrawLabels(Graphics g, Game game)
         {
@@ -364,8 +376,8 @@ namespace Clio.Desktop
                 if (occupied.Any(r => r.IntersectsWith(bounds))) continue;
                 occupied.Add(new RectangleF(bounds.X - 9, bounds.Y - 9, bounds.Width + 18, bounds.Height + 18));
                 RectangleF shadow = bounds; shadow.Offset(0, 1);
-                Art.CenterText(g, game.Place(p.Cell.Id), shadow, Zoom < 1.8 ? 13 : 16, Color.FromArgb(175, 17, 33, 31), true);
-                Art.CenterText(g, game.Place(p.Cell.Id), bounds, Zoom < 1.8 ? 13 : 16, Color.FromArgb(228, 228, 217, 179), true);
+                Art.CenterText(g, game.Place(p.Cell.Id), shadow, Zoom < 1.8 ? 13 : 16, Color.FromArgb(230, MapPaper.Paper), true);
+                Art.CenterText(g, game.Place(p.Cell.Id), bounds, Zoom < 1.8 ? 13 : 16, MapPaper.Ink, true);
             }
         }
         private void DrawCompass(Graphics g)
@@ -380,16 +392,16 @@ namespace Clio.Desktop
         {
             switch (terrain)
             {
-                case Terrain.Ocean: return Color.FromArgb(35, 91, 125);
-                case Terrain.Coast: return Color.FromArgb(73, 149, 164);
-                case Terrain.Grassland: return Color.FromArgb(157, 173, 106);
-                case Terrain.Forest: return Color.FromArgb(100, 138, 79);
-                case Terrain.Hills: return Color.FromArgb(160, 165, 115);
-                case Terrain.Mountains: return Color.FromArgb(148, 153, 134);
-                case Terrain.Desert: return Color.FromArgb(194, 165, 114);
-                case Terrain.Tundra: return Color.FromArgb(158, 176, 161);
-                case Terrain.Ice: return Color.FromArgb(205, 222, 217);
-                default: return Color.FromArgb(117, 150, 108);
+                case Terrain.Ocean: return Color.FromArgb(186, 204, 203);
+                case Terrain.Coast: return Color.FromArgb(205, 217, 205);
+                case Terrain.Grassland: return Color.FromArgb(225, 223, 188);
+                case Terrain.Forest: return Color.FromArgb(207, 214, 180);
+                case Terrain.Hills: return Color.FromArgb(224, 213, 182);
+                case Terrain.Mountains: return Color.FromArgb(230, 222, 202);
+                case Terrain.Desert: return Color.FromArgb(233, 216, 178);
+                case Terrain.Tundra: return Color.FromArgb(218, 223, 207);
+                case Terrain.Ice: return Color.FromArgb(243, 240, 224);
+                default: return Color.FromArgb(207, 219, 190);
             }
         }
         public static Color RegionColor(int region)
@@ -397,6 +409,6 @@ namespace Clio.Desktop
             Color[] colors = { Color.FromArgb(180, 164, 107), Color.FromArgb(110, 161, 140), Color.FromArgb(189, 127, 102), Color.FromArgb(113, 150, 176), Color.FromArgb(162, 144, 187), Color.FromArgb(185, 174, 111), Color.FromArgb(100, 164, 157) };
             return colors[(int)((uint)region % colors.Length)];
         }
-        public void Dispose() { if (cachedTerrain != null) cachedTerrain.Dispose(); if (backdrop != null) backdrop.Dispose(); if (fogImage != null) fogImage.Dispose(); if (unitClip != null) unitClip.Dispose(); mist.Dispose(); terrain.Dispose(); }
+        public void Dispose() { if (cachedTerrain != null) cachedTerrain.Dispose(); if (backdrop != null) backdrop.Dispose(); if (fogImage != null) fogImage.Dispose(); if (unitClip != null) unitClip.Dispose(); terrain.Dispose(); }
     }
 }

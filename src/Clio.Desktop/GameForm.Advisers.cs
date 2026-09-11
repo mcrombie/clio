@@ -128,7 +128,7 @@ namespace Clio.Desktop
         private static string AdviserContext(Advisory report)
         { return IsBeginnerLesson(report) ? "Learning to play / " + report.SubjectName : report.IsGuidance ? "Turn " + report.Turn + " / Guidance" : report.Severity.ToString(); }
         private static Color AdviserInk(Advisory report)
-        { return report.Severity >= AdvisorySeverity.Urgent ? Color.FromArgb(230, 152, 124) : Art.Gold; }
+        { return report.Severity >= AdvisorySeverity.Urgent ? Art.PaperMode ? MapPaper.Warning : Color.FromArgb(230, 152, 124) : Art.Gold; }
 
         private void DrawAdviserEntry(Graphics g, RectangleF box)
         {

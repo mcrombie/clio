@@ -21,8 +21,8 @@ namespace Clio.Desktop
         private readonly List<OpportunityTarget> interestTargets = new List<OpportunityTarget>(), saltTargets = new List<OpportunityTarget>();
         internal const double StrongGatheringValue = 2.0;
         private readonly List<int> foodInterestCells = new List<int>(), frontierInterestCells = new List<int>();
-        internal static readonly Color FoodInterestInk = Color.FromArgb(232, 205, 130);
-        internal static readonly Color FrontierInterestInk = Color.FromArgb(168, 219, 229);
+        internal static Color FoodInterestInk { get { return Art.PaperMode ? UnitArt.MapAccent : Color.FromArgb(232, 205, 130); } }
+        internal static Color FrontierInterestInk { get { return Art.PaperMode ? UnitArt.MapRoute : Color.FromArgb(168, 219, 229); } }
 
         // Opportunities describe real actions, not items that are collected by movement.
         internal static double GatheringValue(Game game, Band band, int cell)
@@ -81,8 +81,7 @@ namespace Clio.Desktop
 
         private static void DrawOpportunityEmphasis(Graphics g, ProjectedCell cell, Color ink)
         {
-            using (Brush wash = new SolidBrush(Color.FromArgb(24, ink))) g.FillPolygon(wash, cell.Polygon);
-            using (Pen glow = new Pen(Color.FromArgb(58, ink), 7)) g.DrawPolygon(glow, cell.Polygon);
+            using (Brush wash = new SolidBrush(Color.FromArgb(17, ink))) g.FillPolygon(wash, cell.Polygon);
             using (Pen edge = new Pen(Color.FromArgb(220, ink), 1.8f)) g.DrawPolygon(edge, cell.Polygon);
         }
 
@@ -122,7 +121,6 @@ namespace Clio.Desktop
                             int other = SharedCell(cell.Cell.Corners[edge], cell.Cell.Corners[next], id);
                             if (other < 0 || game.Explored.Contains(other)) continue;
                             PointF a = Lerp(cell.Polygon[edge], cell.Center, .035f), b = Lerp(cell.Polygon[next], cell.Center, .035f);
-                            using (Pen glow = new Pen(Color.FromArgb(38, FrontierInterestInk), 7)) g.DrawLine(glow, a, b);
                             using (Pen edgeInk = new Pen(Color.FromArgb(162, FrontierInterestInk), 1.2f) { DashPattern = new[] { 2f, 5f } }) g.DrawLine(edgeInk, a, b);
                         }
                         if (frontier >= 2 && cell.Radius >= 29)
@@ -139,31 +137,19 @@ namespace Clio.Desktop
             }
         }
 
-        private static void DrawInterestGlow(Graphics g, PointF point, float radius, Color color, int alpha)
-        {
-            using (GraphicsPath path = new GraphicsPath())
-            {
-                path.AddEllipse(point.X - radius, point.Y - radius * .72f, radius * 2, radius * 1.44f);
-                using (PathGradientBrush glow = new PathGradientBrush(path))
-                { glow.CenterPoint = point; glow.CenterColor = Color.FromArgb(alpha, color); glow.SurroundColors = new[] { Color.FromArgb(0, color) }; g.FillPath(glow, path); }
-            }
-        }
-
-        // Ground light, a fine raised badge and two clear rings make a useful
-        // destination legible among trees. Pure illustration: no timer or RNG.
+        // A paper symbol and a fine ground ring mark a useful place. Its exact
+        // former pick rectangle remains intact; there is no light shaft or glow.
         private static void DrawOpportunityBeacon(Graphics g, PointF ground, float size, Color ink, int kind, SaltSource source, bool highlighted = false)
         {
             PointF light = new PointF(ground.X, ground.Y + size * .24f);
-            DrawInterestGlow(g, light, size * (highlighted ? 1.85f : 1.55f), ink, highlighted ? 220 : 150);
-            RectangleF shaft = new RectangleF(ground.X - size * .34f, ground.Y - size * .80f, size * .68f, size * 1.17f);
-            using (LinearGradientBrush beam = new LinearGradientBrush(shaft, Color.FromArgb(3, ink), Color.FromArgb(86, ink), 90)) g.FillRectangle(beam, shaft);
-            using (Pen outer = new Pen(Color.FromArgb(112, ink), 1.2f)) g.DrawEllipse(outer, ground.X - size * .87f, light.Y - size * .31f, size * 1.74f, size * .62f);
-            using (Pen inner = new Pen(Color.FromArgb(223, ink), 1.4f)) g.DrawArc(inner, ground.X - size * .61f, light.Y - size * .23f, size * 1.22f, size * .46f, 15, 150);
+            using (Brush paper = new SolidBrush(Color.FromArgb(200, UnitArt.MapPaper))) g.FillEllipse(paper, ground.X - size * .87f, light.Y - size * .31f, size * 1.74f, size * .62f);
+            using (Pen outer = new Pen(Color.FromArgb(highlighted ? 230 : 150, ink), highlighted ? 1.5f : .9f)) g.DrawEllipse(outer, ground.X - size * .87f, light.Y - size * .31f, size * 1.74f, size * .62f);
+            using (Pen inner = new Pen(Color.FromArgb(130, ink), .65f)) g.DrawArc(inner, ground.X - size * .61f, light.Y - size * .23f, size * 1.22f, size * .46f, 15, 150);
             PointF badge = new PointF(ground.X, ground.Y - size * .47f);
             float half = size * .56f;
             PointF[] rim = { new PointF(badge.X, badge.Y - half), new PointF(badge.X + half * .86f, badge.Y - half * .5f), new PointF(badge.X + half * .86f, badge.Y + half * .5f), new PointF(badge.X, badge.Y + half), new PointF(badge.X - half * .86f, badge.Y + half * .5f), new PointF(badge.X - half * .86f, badge.Y - half * .5f) };
-            using (Brush dark = new SolidBrush(Color.FromArgb(239, 31, 46, 43))) g.FillPolygon(dark, rim);
-            using (Pen edge = new Pen(highlighted ? Color.FromArgb(255, 249, 233) : Color.FromArgb(238, ink), highlighted ? 2.4f : 1.25f)) g.DrawPolygon(edge, rim);
+            using (Brush paper = new SolidBrush(UnitArt.MapPaper)) g.FillPolygon(paper, rim);
+            using (Pen edge = new Pen(ink, highlighted ? 2f : 1.1f)) g.DrawPolygon(edge, rim);
             RectangleF icon = new RectangleF(badge.X - size * .43f, badge.Y - size * .43f, size * .86f, size * .86f);
             if (kind == 0) DrawFoodInterestIcon(g, icon);
             else if (kind == 1) DrawSaltSourceIcon(g, source, icon, false);
@@ -174,7 +160,7 @@ namespace Clio.Desktop
         {
             GraphicsState state = g.Save();
             g.TranslateTransform(box.X + box.Width * .5f, box.Y + box.Height * .5f); g.ScaleTransform(box.Width / 24, box.Height / 24);
-            using (Brush shadow = new SolidBrush(Color.FromArgb(148, 34, 49, 32))) g.FillEllipse(shadow, -10, -10, 20, 21);
+            using (Brush shadow = new SolidBrush(Art.PaperMode ? Color.FromArgb(210, UnitArt.MapPaper) : Color.FromArgb(148, 34, 49, 32))) g.FillEllipse(shadow, -10, -10, 20, 21);
             using (Pen stem = new Pen(FoodInterestInk, 1.25f))
             {
                 g.DrawBezier(stem, -2, 9, -2, 3, 2, -2, 2, -10);
@@ -196,10 +182,10 @@ namespace Clio.Desktop
         {
             GraphicsState state = g.Save();
             g.TranslateTransform(box.X + box.Width * .5f, box.Y + box.Height * .5f); g.ScaleTransform(box.Width / 24, box.Height / 24);
-            using (Brush shadow = new SolidBrush(Color.FromArgb(156, 28, 47, 48))) g.FillEllipse(shadow, -9, -9, 18, 18);
+            using (Brush shadow = new SolidBrush(Art.PaperMode ? Color.FromArgb(210, UnitArt.MapPaper) : Color.FromArgb(156, 28, 47, 48))) g.FillEllipse(shadow, -9, -9, 18, 18);
             using (Pen orbit = new Pen(Color.FromArgb(149, FrontierInterestInk), .8f)) g.DrawEllipse(orbit, -8, -8, 16, 16);
             using (Brush light = new SolidBrush(FrontierInterestInk)) g.FillPolygon(light, new[] { new PointF(0, -11), new PointF(2, -2), new PointF(9, 0), new PointF(2, 2), new PointF(0, 9), new PointF(-2, 2), new PointF(-9, 0), new PointF(-2, -2) });
-            using (Brush center = new SolidBrush(Color.FromArgb(50, 90, 94))) g.FillEllipse(center, -1.5f, -1.5f, 3, 3);
+            using (Brush center = new SolidBrush(Art.PaperMode ? UnitArt.MapPaper : Color.FromArgb(50, 90, 94))) g.FillEllipse(center, -1.5f, -1.5f, 3, 3);
             g.Restore(state);
         }
     }

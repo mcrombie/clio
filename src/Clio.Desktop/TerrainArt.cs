@@ -17,6 +17,8 @@ namespace Clio.Desktop
     // Original procedural illustration. These assets are visual and never touch simulation RNG/state.
     internal sealed class TerrainArt : IDisposable
     {
+        private static readonly Color PenInk = Color.FromArgb(91, 76, 55);
+        private static readonly Color WaterInk = Color.FromArgb(90, 113, 116);
         private readonly Bitmap[] trees = new Bitmap[24];
         private readonly Bitmap[] peaks = new Bitmap[8];
         private readonly Bitmap[] hills = new Bitmap[8];
@@ -43,10 +45,10 @@ namespace Clio.Desktop
             Bitmap image = new Bitmap(384, 384, PixelFormat.Format32bppPArgb);
             for (int y = 0; y < image.Height; y++) for (int x = 0; x < image.Width; x++)
             {
-                // Periodic noise keeps the cloth-like mist texture seamless when tiled.
+                // A quiet paper grain, seamless when the unknown land is tiled.
                 double sx = Math.Cos(x * Math.PI * 2 / 384), sy = Math.Sin(y * Math.PI * 2 / 384);
                 double n = Noise(3 + sx * 1.5, 3 + sy * 1.5, 19) * .60 + Noise(8 + sx * 5, 8 + sy * 5, 53) * .28 + Hash(x, y, 31) * .12;
-                image.SetPixel(x, y, Color.FromArgb((int)(n * 39), 137, 159, 156));
+                image.SetPixel(x, y, Color.FromArgb((int)(n * 22), 157, 133, 93));
             }
             return image;
         }
@@ -54,10 +56,10 @@ namespace Clio.Desktop
         {
             Bitmap image = new Bitmap(192, 192, PixelFormat.Format32bppPArgb); Random rng = new Random(kind * 7159 + 271);
             Terrain terrain = (Terrain)kind;
-            Color lightColor = terrain == Terrain.Desert ? Color.FromArgb(249, 220, 161) : terrain == Terrain.Wetland ? Color.FromArgb(177, 191, 131) :
-                terrain == Terrain.Tundra || terrain == Terrain.Ice ? Color.FromArgb(217, 224, 209) : Color.FromArgb(202, 205, 140);
-            Color darkColor = terrain == Terrain.Forest ? Color.FromArgb(40, 61, 36) : terrain == Terrain.Desert ? Color.FromArgb(122, 86, 51) :
-                terrain == Terrain.Wetland ? Color.FromArgb(38, 88, 81) : Color.FromArgb(53, 72, 48);
+            Color lightColor = Color.FromArgb(248, 240, 217);
+            Color darkColor = terrain == Terrain.Forest ? Color.FromArgb(118, 119, 83) : terrain == Terrain.Desert ? Color.FromArgb(177, 135, 76) :
+                terrain == Terrain.Wetland || terrain == Terrain.Coast || terrain == Terrain.Ocean ? Color.FromArgb(120, 143, 141) :
+                terrain == Terrain.Tundra || terrain == Terrain.Ice ? Color.FromArgb(139, 141, 135) : Color.FromArgb(159, 147, 106);
             using (Graphics g = Graphics.FromImage(image))
             {
                 g.SmoothingMode = SmoothingMode.AntiAlias;
@@ -65,19 +67,26 @@ namespace Clio.Desktop
                 {
                     float x = rng.Next(192), y = rng.Next(192), r = 3 + rng.Next(24);
                     bool light = rng.Next(3) == 0;
-                    using (Brush brush = new SolidBrush(Color.FromArgb(5 + rng.Next(20), light ? lightColor : darkColor))) g.FillEllipse(brush, x, y, r * 1.7f, r * .61f);
+                    int alpha = 5 + rng.Next(20);
+                    if (i % 6 != 0) continue;
+                    using (Brush brush = new SolidBrush(Color.FromArgb(alpha / 2 + 2, light ? lightColor : darkColor)))
+                        g.FillClosedCurve(brush, new[] { new PointF(x, y + r * .2f), new PointF(x + r * .45f, y),
+                            new PointF(x + r * 1.6f, y + r * .16f), new PointF(x + r * 1.45f, y + r * .55f),
+                            new PointF(x + r * .33f, y + r * .63f) });
                 }
                 for (int i = 0; i < 1550; i++)
                 {
-                    int alpha = rng.Next(9, 35); Color color = Color.FromArgb(alpha, rng.Next(2) == 0 ? lightColor : darkColor);
+                    int alpha = rng.Next(9, 35); Color color = rng.Next(2) == 0 ? lightColor : PenInk;
                     float x = rng.Next(192), y = rng.Next(192);
-                    using (Pen grain = new Pen(color, .7f)) g.DrawLine(grain, x, y, x + rng.Next(1, 4), y - rng.Next(2));
+                    float endX = x + rng.Next(1, 4), endY = y - rng.Next(2);
+                    if (i % 8 == 0) using (Pen grain = new Pen(Color.FromArgb(alpha / 2, color), .6f)) g.DrawLine(grain, x, y, endX, endY);
                 }
                 if (terrain == Terrain.Forest)
                     for (int i = 0; i < 110; i++)
                     {
                         float x = rng.Next(192), y = rng.Next(192);
-                        using (Brush litter = new SolidBrush(Color.FromArgb(rng.Next(12, 38), 153, 132, 73))) g.FillEllipse(litter, x, y, 3.5f, 1.5f);
+                        int alpha = rng.Next(12, 38);
+                        if (i % 9 == 0) using (Pen litter = new Pen(Color.FromArgb(alpha, PenInk), .65f)) g.DrawLine(litter, x, y, x + 2, y + 1);
                     }
             }
             return image;
@@ -96,7 +105,9 @@ namespace Clio.Desktop
                     for (int i = 0; i < 11; i++)
                     {
                         PointF at = Scatter(p, random, .96f); float w = (float)(r * (.12 + random.NextDouble() * .22));
-                        using (Pen wave = new Pen(Color.FromArgb(15 + random.Next(20), 191, 224, 216), .65f)) g.DrawBezier(wave, at.X - w, at.Y, at.X - w / 2, at.Y - 1.5f, at.X + w / 2, at.Y + 1.5f, at.X + w, at.Y);
+                        int alpha = 15 + random.Next(20);
+                        if (i % 3 == 0) using (Pen wave = new Pen(Color.FromArgb(alpha + 34, WaterInk), .7f))
+                            g.DrawBezier(wave, at.X - w, at.Y, at.X - w / 2, at.Y - 1.2f, at.X + w / 2, at.Y + 1.2f, at.X + w, at.Y);
                     }
                 }
             }
@@ -104,12 +115,13 @@ namespace Clio.Desktop
             {
                 if (p.Cell.Terrain == Terrain.Wetland && r > 18) DrawWetland(g, p, random);
                 int count = r > 18 ? p.Cell.Terrain == Terrain.Forest ? 19 : 31 : 8;
-                using (Pen shade = new Pen(Color.FromArgb(42, 46, 70, 38), 1))
-                using (Pen grass = new Pen(Color.FromArgb(88, 191, 198, 127), .75f))
+                using (Pen shade = new Pen(Color.FromArgb(32, PenInk), .65f))
+                using (Pen grass = new Pen(Color.FromArgb(90, PenInk), .7f))
                 for (int i = 0; i < count; i++)
                 {
                     PointF at = Scatter(p, random, .98f); float length = Math.Min(6.5f, r * (.035f + (float)random.NextDouble() * .035f));
-                    g.DrawLine(shade, at.X - length * .7f, at.Y + 1, at.X + length, at.Y + 1);
+                    if (i % 4 != 0) continue;
+                    g.DrawBezier(shade, at.X - length, at.Y + 1, at.X, at.Y, at.X, at.Y + 2, at.X + length, at.Y + 1);
                     g.DrawLine(grass, at.X, at.Y, at.X - length * .45f, at.Y - length);
                     g.DrawLine(grass, at.X + 1, at.Y, at.X + length * .6f, at.Y - length * .75f);
                 }
@@ -119,8 +131,12 @@ namespace Clio.Desktop
                 for (int i = 0; i < 7; i++)
                 {
                     PointF at = Scatter(p, random, .88f); float w = r * (.3f + (float)random.NextDouble() * .25f);
-                    using (Pen dark = new Pen(Color.FromArgb(42, 116, 93, 60), 3)) g.DrawBezier(dark, at.X - w, at.Y + 1, at.X - w / 2, at.Y - w / 3, at.X + w / 3, at.Y - w / 4, at.X + w, at.Y + 2);
-                    using (Pen light = new Pen(Color.FromArgb(95, 240, 216, 161), .9f)) g.DrawBezier(light, at.X - w, at.Y, at.X - w / 2, at.Y - w / 3, at.X + w / 3, at.Y - w / 4, at.X + w, at.Y + 1);
+                    if (i % 2 != 0) continue;
+                    using (Pen line = new Pen(Color.FromArgb(85, 132, 98, 58), .85f))
+                        g.DrawBezier(line, at.X - w, at.Y, at.X - w / 2, at.Y - w / 3, at.X + w / 3, at.Y - w / 4, at.X + w, at.Y + 1);
+                    using (Pen hatch = new Pen(Color.FromArgb(49, PenInk), .65f))
+                        for (int mark = 0; mark < 4; mark++)
+                        { float xx = at.X + mark * w * .15f; g.DrawLine(hatch, xx, at.Y - w * .15f, xx + w * .15f, at.Y + w * .07f); }
                 }
             }
             g.Restore(state);
@@ -141,19 +157,20 @@ namespace Clio.Desktop
                 using (GraphicsPath pool = new GraphicsPath())
                 {
                     pool.AddClosedCurve(rim, .6f);
-                    using (Pen earth = new Pen(Color.FromArgb(136, 104, 119, 68), Math.Max(2, r * .06f))) g.DrawPath(earth, pool);
-                    using (LinearGradientBrush water = new LinearGradientBrush(new RectangleF(at.X - w, at.Y - h, w * 2, h * 2), Color.FromArgb(218, 45, 97, 101), Color.FromArgb(220, 101, 155, 147), 90)) g.FillPath(water, pool);
-                    using (Pen bank = new Pen(Color.FromArgb(110, 180, 190, 128), .8f)) g.DrawPath(bank, pool);
+                    using (Brush water = new SolidBrush(Color.FromArgb(15, 120, 146, 144))) g.FillPath(water, pool);
                 }
-                using (Pen reflection = new Pen(Color.FromArgb(105, 193, 217, 187), .8f))
-                { g.DrawLine(reflection, at.X - w * .42f, at.Y, at.X + w * .1f, at.Y); g.DrawLine(reflection, at.X - w * .12f, at.Y + h * .37f, at.X + w * .45f, at.Y + h * .37f); }
-                using (Pen reed = new Pen(Color.FromArgb(160, 98, 115, 49), .9f))
-                using (Pen light = new Pen(Color.FromArgb(150, 189, 180, 98), .7f))
+                using (Pen ripple = new Pen(Color.FromArgb(95, WaterInk), .7f))
+                { g.DrawBezier(ripple, at.X - w * .8f, at.Y, at.X - w * .4f, at.Y - h * .45f, at.X + w * .2f, at.Y + h * .2f, at.X + w * .65f, at.Y);
+                    g.DrawLine(ripple, at.X - w * .45f, at.Y + h * .5f, at.X + w * .22f, at.Y + h * .5f); }
+                using (Pen reed = new Pen(Color.FromArgb(135, PenInk), .85f))
+                using (Pen light = new Pen(Color.FromArgb(88, PenInk), .65f))
                 for (int j = 0; j < 5; j++)
                 {
                     float x = at.X - w * .85f + j * w * .35f, y = at.Y + h * (.65f + (float)random.NextDouble() * .45f);
                     float length = r * (.05f + (float)random.NextDouble() * .045f);
+                    if (j % 2 != 0) continue;
                     g.DrawLine(reed, x, y, x - length * .25f, y - length); g.DrawLine(light, x + 1, y, x + length * .3f, y - length * .8f);
+                    g.DrawLine(reed, x - length * .25f, y - length, x - length * .23f, y - length * .69f);
                 }
             }
         }
@@ -167,8 +184,8 @@ namespace Clio.Desktop
             Terrain type = p.Cell.Terrain;
             if (type == Terrain.Forest)
             {
-                // Several uneven stands, meadow openings and occasional older
-                // trees give each forest a silhouette instead of an even carpet.
+                // Keep the established placement samples and clearings, drawing
+                // just a few pen symbols so the paper remains open between them.
                 double woodland = Noise(p.Cell.Center.X * 8 + 13, p.Cell.Center.Z * 8 + 17, seed);
                 int count = r > 25 ? 34 + (int)(woodland * 22) : r > 14 ? 24 : 13;
                 PointF clearing = Scatter(p, random, .53f);
@@ -185,7 +202,7 @@ namespace Clio.Desktop
                     if (season == "Autumn" && index >= 8) index += 8;
                     double xx = (at.X - clearing.X) / openX, yy = (at.Y - clearing.Y) / openY;
                     double proximity = stands.Min(s => Math.Pow((at.X - s.X) / r, 2) + Math.Pow((at.Y - s.Y) / r, 2));
-                    if (xx * xx + yy * yy < 1 || proximity > .40 && i % 3 != 0 || navigating && i % 4 != 0 || InRiverClearing(context, at, h)) continue;
+                    if (xx * xx + yy * yy < 1 || proximity > .40 && i % 3 != 0 || i % 6 > 1 || navigating && i % 4 != 0 || InRiverClearing(context, at, h)) continue;
                     grove.Add(Tuple.Create(at, h, index));
                 }
                 DrawFoothills(g, p, context, seed);
@@ -199,13 +216,13 @@ namespace Clio.Desktop
                 PointF axis = MountainAxis(p, context, seed);
                 if (type == Terrain.Mountains)
                 {
-                    // A broad, shared piedmont ties the individual summits to the
-                    // same landform. Neighbor saddles are drawn by the renderer.
+                    // A single contour beneath the summits joins the range.
+                    // Neighboring ridge strokes are drawn by the renderer.
                     for (int i = 0; i < 3; i++)
                     {
                         float t = i - 1, h = r * (.61f + (float)random.NextDouble() * .15f);
                         PointF at = new PointF(p.Center.X + axis.X * r * t * .43f, p.Center.Y + axis.Y * r * t * .43f + r * .15f);
-                        g.DrawImage(hills[(p.Cell.Id + i) % hills.Length], at.X - h, at.Y - h * .61f, h * 2, h);
+                        if (i == 1) g.DrawImage(hills[(p.Cell.Id + i) % hills.Length], at.X - h, at.Y - h * .61f, h * 2, h);
                     }
                 }
                 for (int i = 0; i < count; i++)
@@ -216,7 +233,7 @@ namespace Clio.Desktop
                     float h = r * (type == Terrain.Mountains ? .85f + (float)random.NextDouble() * .52f : .39f + (float)random.NextDouble() * .36f);
                     if (type == Terrain.Mountains && (i == 0 || i == count - 1)) h *= .74f;
                     int variant = type == Terrain.Mountains ? random.Next(4) + (snow ? 0 : 4) : random.Next(8);
-                    if (!navigating || i == 0) ridges.Add(Tuple.Create(at, h, variant));
+                    if ((!navigating || i == 0) && (type != Terrain.Mountains || i < 3)) ridges.Add(Tuple.Create(at, h * .88f, variant));
                 }
                 foreach (var ridge in ridges.OrderBy(t => t.Item1.Y))
                     if (type == Terrain.Mountains) g.DrawImage(peaks[ridge.Item3], ridge.Item1.X - ridge.Item2 * .67f, ridge.Item1.Y - ridge.Item2 * .81f, ridge.Item2 * 1.34f, ridge.Item2);
@@ -281,12 +298,18 @@ namespace Clio.Desktop
             using (GraphicsPath landform = new GraphicsPath())
             {
                 landform.AddClosedCurve(basePoints, .34f);
-                using (PathGradientBrush earth = new PathGradientBrush(landform))
-                { earth.CenterPoint = midpoint; earth.CenterColor = Color.FromArgb(187, 112, 134, 105); earth.SurroundColors = new[] { Color.FromArgb(0, 116, 139, 101) }; g.FillPath(earth, landform); }
+                using (Brush wash = new SolidBrush(Color.FromArgb(10, 149, 126, 87))) g.FillPath(wash, landform);
             }
             PointF[] crest = { new PointF(first.X, first.Y - width * .35f), new PointF(midpoint.X, midpoint.Y - width * .57f), new PointF(second.X, second.Y - width * .30f) };
-            using (Pen shade = new Pen(Color.FromArgb(70, 42, 72, 64), width * .68f) { StartCap = LineCap.Round, EndCap = LineCap.Round }) g.DrawCurve(shade, crest, .35f);
-            using (Pen light = new Pen(Color.FromArgb(121, 173, 181, 136), Math.Max(1.2f, width * .13f))) g.DrawCurve(light, crest, .35f);
+            using (Pen line = new Pen(Color.FromArgb(79, PenInk), Math.Max(.65f, Math.Min(1.1f, width * .055f)))
+                { StartCap = LineCap.Round, EndCap = LineCap.Round }) g.DrawCurve(line, crest, .35f);
+            using (Pen hatch = new Pen(Color.FromArgb(54, PenInk), .65f))
+                for (int mark = 1; mark < 7; mark++)
+                {
+                    float t = mark / 7f, taper = (float)(.32 + Hash(mark, 29, seed) * .3);
+                    float x = first.X + dx * t, y = first.Y + dy * t - width * .4f;
+                    g.DrawLine(hatch, x, y, x + nx * taper + dx * .025f, y + ny * taper + width * .24f);
+                }
         }
         private void DrawTree(Graphics g, PointF at, float height, int variant)
         { g.DrawImage(trees[variant], at.X - height * .38f, at.Y - height * .90f, height * .76f, height); }
@@ -299,171 +322,161 @@ namespace Clio.Desktop
         }
         private static Bitmap MakeTree(int variant)
         {
-            Bitmap image = new Bitmap(128, 180, PixelFormat.Format32bppPArgb); Random rng = new Random(variant * 7411 + 37);
+            Bitmap image = new Bitmap(128, 180, PixelFormat.Format32bppPArgb);
+            Random rng = new Random(variant * 7411 + 37);
             using (Graphics g = Graphics.FromImage(image))
+            using (Pen outline = new Pen(Color.FromArgb(195, PenInk), 2.4f) { LineJoin = LineJoin.Round, StartCap = LineCap.Round, EndCap = LineCap.Round })
+            using (Pen fine = new Pen(Color.FromArgb(125, PenInk), 1.4f) { StartCap = LineCap.Round, EndCap = LineCap.Round })
             {
                 g.SmoothingMode = SmoothingMode.AntiAlias;
-                for (int i = 4; i >= 0; i--)
-                    using (Brush shadow = new SolidBrush(Color.FromArgb(10 + (4 - i) * 3, 13, 34, 27))) g.FillEllipse(shadow, 42 - i * 2, 145 - i, 72 + i * 3, 15 + i * 2);
-                using (Brush contact = new SolidBrush(Color.FromArgb(77, 17, 32, 23))) g.FillEllipse(contact, 49, 153, 30, 8);
-                float trunkX = 61 + rng.Next(-3, 4);
-                using (Pen bark = new Pen(Color.FromArgb(61, 62, 38), 6) { StartCap = LineCap.Round, EndCap = LineCap.Round }) g.DrawLine(bark, trunkX, 102, trunkX - 2, 155);
-                using (Pen wood = new Pen(Color.FromArgb(149, 131, 75), 2.2f)) g.DrawLine(wood, trunkX - 1.5f, 114, trunkX - 3.5f, 154);
-                using (Pen root = new Pen(Color.FromArgb(104, 98, 57), 1.5f))
-                { g.DrawLine(root, trunkX - 2, 151, trunkX - 12, 157); g.DrawLine(root, trunkX - 2, 151, trunkX + 8, 156); }
-                Color baseColor = variant < 8 ? Color.FromArgb(33 + variant * 2, 77 + variant * 3, 54 + variant) :
-                    variant < 16 ? Color.FromArgb(64 + (variant - 8) * 3, 103 + (variant - 8) * 3, 48 + (variant - 8) * 2) :
-                    Color.FromArgb(140 + (variant - 16) * 7, 108 + (variant - 16) * 3, 40 + (variant - 16));
+                float trunk = 61 + rng.Next(-3, 4);
+                Color wash = variant < 8 ? Color.FromArgb(30, 114, 121, 89) : variant < 16 ? Color.FromArgb(24, 132, 133, 94) : Color.FromArgb(27, 160, 126, 77);
+                g.DrawBezier(outline, trunk - 2, 105, trunk + 2, 123, trunk - 2, 140, trunk - 2, 156);
+                g.DrawLine(fine, trunk + 3, 121, trunk + 2, 154);
+                g.DrawLine(fine, trunk - 2, 153, trunk - 10, 158);
+                g.DrawLine(fine, trunk + 2, 153, trunk + 10, 157);
                 if (variant < 8)
                 {
-                    for (int layer = 0; layer < 4; layer++)
+                    float lean = rng.Next(-5, 6), crown = trunk + lean;
+                    PointF[] tree = {
+                        new PointF(crown, 15), new PointF(crown - 15, 50), new PointF(crown - 7, 46),
+                        new PointF(trunk - 26, 79), new PointF(trunk - 15, 74), new PointF(trunk - 38, 108),
+                        new PointF(trunk - 24, 103), new PointF(trunk - 46, 134), new PointF(trunk - 16, 137),
+                        new PointF(trunk, 132), new PointF(trunk + 21, 138), new PointF(trunk + 44, 133),
+                        new PointF(trunk + 25, 106), new PointF(trunk + 36, 112), new PointF(trunk + 17, 77),
+                        new PointF(trunk + 27, 84), new PointF(crown + 10, 48), new PointF(crown + 17, 52)
+                    };
+                    using (Brush tint = new SolidBrush(wash)) g.FillPolygon(tint, tree);
+                    g.DrawPolygon(outline, tree);
+                    for (int branch = 0; branch < 7; branch++)
                     {
-                        float cy = 127 - layer * 24, width = 42 - layer * 9 + rng.Next(-3, 4), lean = rng.Next(-3, 4);
-                        float tipX = trunkX + lean;
-                        PointF[] branch = { new PointF(tipX, cy - 43), new PointF(tipX - width * .27f, cy - 23), new PointF(tipX - width * .2f, cy - 24),
-                            new PointF(trunkX - width * .69f, cy - 8), new PointF(trunkX - width * .54f, cy - 10), new PointF(trunkX - width, cy + 5),
-                            new PointF(trunkX - width * .57f, cy + 3), new PointF(trunkX - width * .47f, cy + 8), new PointF(trunkX - width * .22f, cy + 5),
-                            new PointF(trunkX + 3, cy + 11), new PointF(trunkX + width * .39f, cy + 5), new PointF(trunkX + width * .71f, cy + 8),
-                            new PointF(trunkX + width, cy + 3), new PointF(trunkX + width * .63f, cy - 12), new PointF(trunkX + width * .73f, cy - 9),
-                            new PointF(tipX + width * .22f, cy - 28) };
-                        using (LinearGradientBrush canopy = new LinearGradientBrush(new RectangleF(trunkX - width, cy - 45, width * 2, 58),
-                            Art.Mix(baseColor, Color.FromArgb(174, 190, 112), .35), Art.Mix(baseColor, Color.FromArgb(17, 45, 39), .35), 24)) g.FillPolygon(canopy, branch);
-                        PointF[] shade = { new PointF(tipX, cy - 40), new PointF(trunkX + 5, cy - 9), new PointF(trunkX - 1, cy + 10),
-                            new PointF(trunkX + width * .39f, cy + 5), new PointF(trunkX + width * .71f, cy + 8), new PointF(trunkX + width, cy + 3), new PointF(trunkX + width * .25f, cy - 24) };
-                        using (Brush side = new SolidBrush(Color.FromArgb(51, 16, 48, 38))) g.FillPolygon(side, shade);
-                        using (Pen rim = new Pen(Color.FromArgb(112, 171, 186, 113), 1.1f)) g.DrawLines(rim, branch.Take(6).ToArray());
-                        using (Pen needle = new Pen(Color.FromArgb(80, 158, 177, 104), .9f))
-                        for (int i = 0; i < 10; i++)
-                        {
-                            float yy = cy - 23 + rng.Next(25), xx = trunkX - (float)rng.NextDouble() * width * .55f;
-                            g.DrawLine(needle, xx, yy, xx - 4 - rng.Next(5), yy + 3);
-                        }
+                        float y = 49 + branch * 12, spread = 8 + branch * 4;
+                        float jitter = rng.Next(-3, 4);
+                        g.DrawLine(fine, trunk + jitter, y, trunk - spread, y + 12);
+                        if (branch % 2 == 0) g.DrawLine(fine, trunk + 3, y + 3, trunk + spread * .8f, y + 13);
                     }
                 }
                 else
                 {
-                    using (Pen limb = new Pen(Color.FromArgb(78, 73, 42), 4.5f) { EndCap = LineCap.Round })
-                    { g.DrawBezier(limb, trunkX, 136, trunkX - 3, 112, 40, 111, 35, 87); g.DrawBezier(limb, trunkX, 133, trunkX + 4, 114, 82, 111, 91, 86); }
-                    using (Pen wood = new Pen(Color.FromArgb(157, 140, 80), 1.6f))
-                    { g.DrawBezier(wood, trunkX - 2, 132, trunkX - 5, 116, 40, 108, 38, 95); g.DrawLine(wood, trunkX + 2, 125, 79, 108); }
-                    float crownX = trunkX + rng.Next(-6, 7), crownY = 76 + rng.Next(-4, 5);
-                    PointF[] contour = new PointF[20];
-                    for (int i = 0; i < contour.Length; i++)
+                    float dx = rng.Next(-5, 6), dy = rng.Next(-4, 5);
+                    PointF[] crown = {
+                        new PointF(24 + dx, 112 + dy), new PointF(17 + dx, 95 + dy), new PointF(22 + dx, 82 + dy),
+                        new PointF(15 + dx, 70 + dy), new PointF(29 + dx, 53 + dy), new PointF(39 + dx, 55 + dy),
+                        new PointF(38 + dx, 36 + dy), new PointF(56 + dx, 30 + dy), new PointF(69 + dx, 38 + dy),
+                        new PointF(82 + dx, 30 + dy), new PointF(98 + dx, 43 + dy), new PointF(96 + dx, 58 + dy),
+                        new PointF(109 + dx, 65 + dy), new PointF(106 + dx, 82 + dy), new PointF(112 + dx, 96 + dy),
+                        new PointF(101 + dx, 115 + dy), new PointF(80 + dx, 119 + dy), new PointF(65 + dx, 112 + dy),
+                        new PointF(45 + dx, 122 + dy)
+                    };
+                    using (GraphicsPath canopy = new GraphicsPath())
                     {
-                        double angle = i * Math.PI * 2 / contour.Length;
-                        float width = 39 + rng.Next(12), height = 43 + rng.Next(12);
-                        contour[i] = new PointF(crownX + (float)Math.Cos(angle) * width, crownY + (float)Math.Sin(angle) * height);
+                        canopy.AddClosedCurve(crown, .32f);
+                        using (Brush tint = new SolidBrush(wash)) g.FillPath(tint, canopy);
+                        g.DrawPath(outline, canopy);
+                        GraphicsState clip = g.Save(); g.SetClip(canopy, CombineMode.Intersect);
+                        for (int mark = 0; mark < 17; mark++)
+                        {
+                            float x = 30 + rng.Next(70), y = 62 + rng.Next(53);
+                            g.DrawBezier(fine, x, y, x + 3, y - 5, x + 8, y - 4, x + 11, y - 1);
+                            if (mark % 3 == 0) g.DrawLine(fine, x + 7, y + 4, x + 15, y + 12);
+                        }
+                        g.Restore(clip);
                     }
-                    using (GraphicsPath crown = new GraphicsPath())
-                    {
-                        crown.AddClosedCurve(contour, .64f);
-                        using (PathGradientBrush volume = new PathGradientBrush(crown))
-                        {
-                            volume.CenterPoint = new PointF(crownX - 16, crownY - 20);
-                            volume.CenterColor = Art.Mix(baseColor, Color.FromArgb(199, 211, 122), .48);
-                            volume.SurroundColors = new[] { Art.Mix(baseColor, Color.FromArgb(21, 54, 37), .37) };
-                            volume.FocusScales = new PointF(.13f, .19f); g.FillPath(volume, crown);
-                        }
-                        GraphicsState leaves = g.Save(); g.SetClip(crown, CombineMode.Intersect);
-                        for (int i = 0; i < 22; i++)
-                        {
-                            float xx = crownX + rng.Next(-39, 36), yy = crownY + rng.Next(-43, 36), size = 17 + rng.Next(18);
-                            Color lit = Art.Mix(baseColor, Color.FromArgb(198, 209, 121), .30 + Math.Max(0, (crownY - yy) / 130));
-                            using (LinearGradientBrush lobe = new LinearGradientBrush(new RectangleF(xx - size / 2, yy - size / 2, size, size), Color.FromArgb(134, lit), Color.FromArgb(35, 20, 52, 34), 62))
-                                g.FillEllipse(lobe, xx - size / 2, yy - size / 2, size, size * .91f);
-                        }
-                        for (int i = 0; i < 180; i++)
-                        {
-                            float xx = crownX + rng.Next(-48, 49), yy = crownY + rng.Next(-52, 53);
-                            bool lit = rng.Next(3) != 0;
-                            using (Brush leaf = new SolidBrush(lit ? Color.FromArgb(30 + rng.Next(63), 199, 211, 128) : Color.FromArgb(45, 19, 48, 33)))
-                                g.FillEllipse(leaf, xx, yy, 2 + rng.Next(3), 1.5f + rng.Next(2));
-                        }
-                        g.Restore(leaves);
-                    }
+                    g.DrawBezier(fine, trunk, 132, trunk - 2, 114, 42 + dx, 112 + dy, 38 + dx, 99 + dy);
+                    g.DrawBezier(fine, trunk + 1, 125, trunk + 4, 112, 82 + dx, 109 + dy, 91 + dx, 94 + dy);
+                }
+                using (Pen ground = new Pen(Color.FromArgb(82, PenInk), 1.3f))
+                {
+                    g.DrawBezier(ground, 28, 158, 38, 155, 45, 157, 50, 158);
+                    g.DrawBezier(ground, 77, 159, 83, 157, 92, 158, 99, 155);
                 }
             }
             return image;
         }
+
         private static Bitmap MakeMountain(int variant)
         {
-            Bitmap image = new Bitmap(208, 164, PixelFormat.Format32bppPArgb); Random rng = new Random(variant * 911 + 101);
+            Bitmap image = new Bitmap(208, 164, PixelFormat.Format32bppPArgb);
+            Random rng = new Random(variant * 911 + 101);
             using (Graphics g = Graphics.FromImage(image))
+            using (Pen outline = new Pen(Color.FromArgb(205, PenInk), 2.3f) { LineJoin = LineJoin.Round, StartCap = LineCap.Round, EndCap = LineCap.Round })
+            using (Pen fine = new Pen(Color.FromArgb(143, PenInk), 1.2f) { LineJoin = LineJoin.Round })
             {
                 g.SmoothingMode = SmoothingMode.AntiAlias;
-                for (int i = 5; i >= 0; i--) using (Brush shadow = new SolidBrush(Color.FromArgb(10, 21, 35, 28))) g.FillEllipse(shadow, 29 - i * 2, 127 - i, 158 + i * 3, 24 + i * 2);
-                float peak = 85 + variant % 4 * 8, top = 11 + variant % 3 * 5;
-                PointF summit = new PointF(peak, top);
-                PointF[] outline = { new PointF(9, 138), new PointF(28, 111), new PointF(40, 112), new PointF(51, 83), new PointF(60, 93),
-                    new PointF(peak - 25, 49), new PointF(peak - 16, 60), summit, new PointF(peak + 14, 59), new PointF(peak + 31, 49),
-                    new PointF(peak + 45, 87), new PointF(peak + 57, 98), new PointF(183, 121), new PointF(199, 140),
-                    new PointF(153, 151), new PointF(101, 155), new PointF(47, 150) };
-                using (GraphicsPath massif = new GraphicsPath())
+                float peak = 85 + variant % 4 * 8, top = 14 + variant % 3 * 5;
+                PointF[] skyline = {
+                    new PointF(12, 141), new PointF(33, 116), new PointF(44, 118), new PointF(64, 80),
+                    new PointF(peak - 15, 65), new PointF(peak, top), new PointF(peak + 20, 69),
+                    new PointF(peak + 30, 59), new PointF(peak + 49, 105), new PointF(170, 117), new PointF(196, 142)
+                };
+                using (GraphicsPath mountain = new GraphicsPath())
                 {
-                    massif.AddPolygon(outline);
-                    using (LinearGradientBrush rock = new LinearGradientBrush(new RectangleF(10, 10, 190, 145), Color.FromArgb(179, 180, 154), Color.FromArgb(77, 103, 92), 37)) g.FillPath(rock, massif);
-                    PointF[] mainRidge = { summit, new PointF(peak - 5, 45), new PointF(peak + 3, 64), new PointF(peak - 6, 82), new PointF(peak + 4, 105), new PointF(peak - 12, 150) };
-                    PointF[] rightFace = { summit, new PointF(peak + 14, 59), new PointF(peak + 31, 49), new PointF(peak + 45, 87), new PointF(peak + 57, 98),
-                        new PointF(199, 140), new PointF(153, 151), new PointF(peak - 12, 150), new PointF(peak + 4, 105), new PointF(peak - 6, 82), new PointF(peak + 3, 64), new PointF(peak - 5, 45) };
-                    using (LinearGradientBrush slope = new LinearGradientBrush(new RectangleF(peak - 12, 10, 128, 146), Color.FromArgb(106, 129, 119), Color.FromArgb(44, 73, 73), 19)) g.FillPolygon(slope, rightFace);
-                    using (Brush lit = new SolidBrush(Color.FromArgb(74, 202, 197, 157))) g.FillPolygon(lit, new[] { new PointF(peak - 25, 49), new PointF(peak - 31, 100), new PointF(40, 143), new PointF(51, 83), new PointF(60, 93) });
-                    using (Brush spur = new SolidBrush(Color.FromArgb(85, 29, 61, 55))) g.FillPolygon(spur, new[] { new PointF(peak + 31, 49), new PointF(peak + 25, 88), new PointF(peak + 43, 121), new PointF(177, 143), new PointF(peak + 45, 87) });
-                    GraphicsState clipping = g.Save(); g.SetClip(massif, CombineMode.Intersect);
-                    for (int i = 0; i < 29; i++)
+                    mountain.AddLines(skyline); mountain.CloseFigure();
+                    using (Brush wash = new SolidBrush(Color.FromArgb(17, 143, 120, 86))) g.FillPath(wash, mountain);
+                    GraphicsState clip = g.Save(); g.SetClip(mountain, CombineMode.Intersect);
+                    // Slopes are described with parallel pen marks, without
+                    // solid faces, cast shadows or directional 3-D lighting.
+                    for (int mark = 0; mark < 21; mark++)
                     {
-                        float y = 45 + rng.Next(89), x = peak + rng.Next(-64, 67), length = 12 + rng.Next(26);
-                        PointF[] seam = { new PointF(x, y), new PointF(x - 5, y + length * .42f), new PointF(x - 3, y + length * .56f), new PointF(x - 13, y + length) };
-                        using (Pen dark = new Pen(Color.FromArgb(29 + rng.Next(36), 24, 48, 42), 1.0f + (float)rng.NextDouble())) g.DrawLines(dark, seam);
-                        using (Pen light = new Pen(Color.FromArgb(43, 223, 215, 177), .85f)) g.DrawLine(light, x - 1, y, x - 7, y + length * .5f);
+                        float t = .12f + mark * .039f;
+                        float y = top + (140 - top) * t;
+                        float x = peak + t * 11 + rng.Next(-3, 4);
+                        float endX = x + 13 + t * 58, endY = y + 18 + rng.Next(8);
+                        if (variant < 4 && y < 53) continue;
+                        g.DrawLine(fine, x, y, endX, endY);
                     }
-                    for (int i = 0; i < 190; i++)
+                    for (int mark = 0; mark < 7; mark++)
                     {
-                        float x = rng.Next(15, 199), y = rng.Next(97, 155), size = 1 + (float)rng.NextDouble() * 3;
-                        using (Brush scree = new SolidBrush(rng.Next(3) == 0 ? Color.FromArgb(96, 188, 188, 154) : Color.FromArgb(78, 47, 72, 61)))
-                            g.FillPolygon(scree, new[] { new PointF(x, y), new PointF(x - size, y + size * .8f), new PointF(x + size, y + size * .7f) });
+                        float x = 38 + rng.Next(126), y = 120 + rng.Next(25);
+                        using (Pen broken = new Pen(Color.FromArgb(88, PenInk), 1)) g.DrawLine(broken, x, y, x + 8, y - 3);
                     }
-                    g.Restore(clipping);
-                    using (Pen ridge = new Pen(Color.FromArgb(174, 211, 211, 177), 1.6f)) g.DrawLines(ridge, mainRidge);
-                    using (Pen ridge = new Pen(Color.FromArgb(115, 204, 205, 168), 1.1f))
-                    { g.DrawLines(ridge, new[] { new PointF(peak - 25, 49), new PointF(peak - 31, 90), new PointF(peak - 45, 123), new PointF(40, 143) }); g.DrawLines(ridge, new[] { new PointF(peak + 31, 49), new PointF(peak + 25, 88), new PointF(peak + 43, 121) }); }
-                    if (variant < 4)
-                    {
-                        PointF[] snow = { summit, new PointF(peak + 11, 49), new PointF(peak + 3, 43), new PointF(peak + 6, 67), new PointF(peak - 4, 57),
-                            new PointF(peak - 16, 74), new PointF(peak - 12, 51), new PointF(peak - 25, 61), new PointF(peak - 13, 35) };
-                        using (LinearGradientBrush cap = new LinearGradientBrush(new RectangleF(peak - 25, top, 40, 64), Color.FromArgb(241, 239, 217), Color.FromArgb(175, 196, 188), 25)) g.FillPolygon(cap, snow);
-                        using (Brush bright = new SolidBrush(Color.FromArgb(242, 242, 220))) g.FillPolygon(bright, new[] { summit, new PointF(peak - 5, 43), new PointF(peak - 15, 58), new PointF(peak - 11, 38) });
-                        using (Pen snowline = new Pen(Color.FromArgb(169, 216, 224, 206), 2.3f))
-                        { g.DrawLine(snowline, peak - 13, 72, peak - 23, 92); g.DrawLine(snowline, peak + 9, 70, peak + 5, 88); }
-                    }
+                    g.Restore(clip);
+                }
+                g.DrawLines(outline, skyline);
+                g.DrawLines(fine, new[] { new PointF(peak, top + 2), new PointF(peak - 4, 61),
+                    new PointF(peak + 5, 83), new PointF(peak - 7, 105), new PointF(peak - 11, 132) });
+                g.DrawLines(fine, new[] { new PointF(peak + 30, 62), new PointF(peak + 27, 97), new PointF(peak + 42, 120) });
+                if (variant < 4)
+                    g.DrawLines(fine, new[] { new PointF(peak - 14, 61), new PointF(peak - 5, 53),
+                        new PointF(peak + 2, 62), new PointF(peak + 9, 52), new PointF(peak + 17, 65) });
+                using (Pen ground = new Pen(Color.FromArgb(80, PenInk), 1))
+                {
+                    g.DrawBezier(ground, 19, 148, 39, 145, 58, 150, 74, 148);
+                    g.DrawBezier(ground, 119, 149, 137, 146, 164, 151, 188, 147);
                 }
             }
             return image;
         }
+
         private static Bitmap MakeHill(int variant)
         {
-            Bitmap image = new Bitmap(192, 106, PixelFormat.Format32bppPArgb); Random rng = new Random(variant * 977 + 441);
+            Bitmap image = new Bitmap(192, 106, PixelFormat.Format32bppPArgb);
+            Random rng = new Random(variant * 977 + 441);
             using (Graphics g = Graphics.FromImage(image))
+            using (Pen outline = new Pen(Color.FromArgb(145, PenInk), 1.8f) { StartCap = LineCap.Round, EndCap = LineCap.Round })
+            using (Pen fine = new Pen(Color.FromArgb(90, PenInk), 1.15f))
             {
                 g.SmoothingMode = SmoothingMode.AntiAlias;
-                for (int i = 4; i >= 0; i--) using (Brush shadow = new SolidBrush(Color.FromArgb(10, 24, 46, 28))) g.FillEllipse(shadow, 19 - i, 71 - i, 155 + i * 2, 24 + i);
-                float crest = 65 + variant * 6, top = 17 + variant % 3 * 6;
-                PointF[] outline = { new PointF(8, 84), new PointF(33, 56), new PointF(crest - 19, top + 6), new PointF(crest, top), new PointF(crest + 25, top + 13),
-                    new PointF(153, 65), new PointF(182, 84), new PointF(139, 97), new PointF(63, 99) };
+                float crest = 65 + variant * 6, top = 20 + variant % 3 * 6;
                 using (GraphicsPath hill = new GraphicsPath())
                 {
-                    hill.AddClosedCurve(outline, .38f);
-                    using (LinearGradientBrush earth = new LinearGradientBrush(new RectangleF(5, 13, 179, 86), Color.FromArgb(164, 170, 110), Color.FromArgb(72, 103, 66), 36)) g.FillPath(earth, hill);
-                    GraphicsState clipping = g.Save(); g.SetClip(hill, CombineMode.Intersect);
-                    PointF[] slope = { new PointF(crest, top), new PointF(crest + 25, top + 13), new PointF(153, 65), new PointF(182, 84), new PointF(131, 95), new PointF(crest - 4, 92), new PointF(crest + 8, 59) };
-                    using (LinearGradientBrush shade = new LinearGradientBrush(new RectangleF(crest - 4, top, 119, 89), Color.FromArgb(46, 68, 94, 61), Color.FromArgb(125, 38, 72, 54), 42)) g.FillClosedCurve(shade, slope, FillMode.Winding, .32f);
-                    for (int i = 0; i < 115; i++)
+                    hill.AddBezier(10, 85, 32, 71, crest - 32, top, crest, top);
+                    hill.AddBezier(crest, top, crest + 35, top - 1, 143, 67, 181, 86);
+                    using (GraphicsPath wash = (GraphicsPath)hill.Clone())
                     {
-                        float x = rng.Next(15, 181), y = rng.Next(29, 101), length = 2 + rng.Next(5);
-                        using (Pen grass = new Pen(Color.FromArgb(rng.Next(18, 75), 214, 208, 143), .8f)) g.DrawLine(grass, x, y, x - length, y + length * .48f);
+                        wash.CloseFigure();
+                        using (Brush tint = new SolidBrush(Color.FromArgb(12, 159, 137, 96))) g.FillPath(tint, wash);
                     }
-                    g.Restore(clipping);
-                    using (Pen ridge = new Pen(Color.FromArgb(128, 199, 200, 134), 1.5f)) g.DrawBezier(ridge, crest, top + 1, crest - 5, top + 20, crest + 11, 53, crest - 8, 82);
+                    g.DrawPath(outline, hill);
                 }
+                for (int mark = 0; mark < 8; mark++)
+                {
+                    float t = mark / 8f, x = crest + 9 + t * 49, y = top + 8 + t * 38;
+                    float length = 13 + rng.Next(12);
+                    g.DrawBezier(fine, x, y, x + 3, y + 6, x + 11, y + length, x + 18, y + length + 3);
+                }
+                using (Pen contour = new Pen(Color.FromArgb(64, PenInk), 1))
+                    g.DrawBezier(contour, 24, 91, 59, 83, 132, 96, 166, 90);
             }
             return image;
         }

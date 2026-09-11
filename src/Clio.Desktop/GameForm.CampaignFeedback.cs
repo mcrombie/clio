@@ -27,7 +27,8 @@ namespace Clio.Desktop
             }
             if (!campaignFeedbackVisible || autoplay || BlockingSheet) return;
             RectangleF box = CampaignFeedbackBounds;
-            Art.Fill(g, Color.FromArgb(210, 18, 29, 32), box.X, box.Y, box.Width, box.Height);
+            if (Art.PaperMode) MapPaper.Surface(g, box, false);
+            else Art.Fill(g, Color.FromArgb(210, 18, 29, 32), box.X, box.Y, box.Width, box.Height);
             Typography.Line(g, campaignFeedbackText, new RectangleF(box.X + 13, box.Y + 5, box.Width - 26, box.Height - 10), 16, Art.Ink, TypeRole.Body, true);
             buttons.Add(new UiButton(box, delegate { campaignFeedbackVisible = false; campaignFeedbackTimer.Stop(); buttons.Clear(); Invalidate(); })
             { Tip = campaignFeedbackText + "\nClick to dismiss. Recorded outcomes remain in History." });

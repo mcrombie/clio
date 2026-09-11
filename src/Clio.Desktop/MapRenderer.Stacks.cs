@@ -25,9 +25,9 @@ namespace Clio.Desktop
             float width = cell.Radius >= 70 ? 84 : 39, height = cell.Radius >= 70 ? 23 : 20;
             if (cell.Radius < 70) label = "+" + (bands + animals - 1);
             RectangleF badge = new RectangleF(cell.Center.X + Math.Min(36, cell.Radius * .37f), cell.Center.Y - 22, width, height);
-            using (Brush ground = new SolidBrush(Color.FromArgb(243, 22, 36, 38))) g.FillRectangle(ground, badge);
-            using (Pen edge = new Pen(Color.FromArgb(183, Art.Gold), 1)) g.DrawRectangle(edge, badge.X, badge.Y, badge.Width, badge.Height);
-            Typography.Line(g, label, new RectangleF(badge.X + 3, badge.Y, badge.Width - 6, badge.Height), cell.Radius >= 70 ? 14 : 12, Art.Ink, TypeRole.Utility, true, StringAlignment.Center);
+            using (Brush ground = new SolidBrush(Color.FromArgb(248, UnitArt.MapPaper))) g.FillRectangle(ground, badge);
+            using (Pen edge = new Pen(Color.FromArgb(210, UnitArt.MapAccent), 1)) g.DrawRectangle(edge, badge.X, badge.Y, badge.Width, badge.Height);
+            Typography.Line(g, label, new RectangleF(badge.X + 3, badge.Y, badge.Width - 6, badge.Height), cell.Radius >= 70 ? 14 : 12, UnitArt.MapInk, TypeRole.Utility, true, StringAlignment.Center);
             AddTarget(unitStackTargets, badge, cell.Cell.Id);
         }
 

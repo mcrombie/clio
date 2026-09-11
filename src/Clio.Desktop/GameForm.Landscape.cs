@@ -7,8 +7,8 @@ namespace Clio.Desktop
 {
     public sealed partial class GameForm
     {
-        private static readonly Color LandscapeSalt = Color.FromArgb(212, 224, 209);
-        private static readonly Color LandscapePaths = MapRenderer.FrontierInterestInk;
+        private static Color LandscapeSalt { get { return Art.PaperMode ? MapPaper.Blue : Color.FromArgb(212, 224, 209); } }
+        private static Color LandscapePaths { get { return MapRenderer.FrontierInterestInk; } }
 
         private void OpenLandscapeGuide()
         {
@@ -18,8 +18,8 @@ namespace Clio.Desktop
 
         private void DrawFloatingMapPanel(Graphics g, RectangleF bounds)
         {
-            Art.Fill(g, Color.FromArgb(35, 0, 0, 0), bounds.X + 2, bounds.Y + 3, bounds.Width, bounds.Height);
-            Art.Panel(g, bounds, Color.FromArgb(24, 34, 37), false);
+            Art.Fill(g, Art.PaperMode ? Color.FromArgb(20, MapPaper.Ink) : Color.FromArgb(35, 0, 0, 0), bounds.X + 2, bounds.Y + 3, bounds.Width, bounds.Height);
+            Art.Panel(g, bounds, Art.PaperMode ? MapPaper.Paper : Color.FromArgb(24, 34, 37), false);
             Art.Line(g, Color.FromArgb(47, Art.Gold), .7f, bounds.Left + 13, bounds.Top, bounds.Right - 13, bounds.Top);
         }
 
@@ -66,7 +66,7 @@ namespace Clio.Desktop
                 "Ordinary step: 1 action. Entering mountains or crossing a river: 2, even when both apply. Mountains remain passable." :
                 "This story uses 1 action per land step. Enable mountain and river costs below; past turns keep their original rules.",
                 new RectangleF(bounds.X + 20, bounds.Y + 331, bounds.Width - 40, 43), 16, Art.Ink, TypeRole.Annotation);
-            Button(g, map.InterestHighlights ? "Useful glows: on" : "Useful glows: off", bounds.X + 20, bounds.Y + 388, 209, 34,
+            Button(g, map.InterestHighlights ? "Useful markers: on" : "Useful markers: off", bounds.X + 20, bounds.Y + 388, 209, 34,
                 delegate { map.InterestHighlights = !map.InterestHighlights; Invalidate(); }, map.InterestHighlights, false);
             MapTip("Show food opportunities on Terrain and Food, and frontier paths on Terrain. Salt markers remain available.");
             if (!game.TerrainTravelEnabled)
@@ -92,7 +92,8 @@ namespace Clio.Desktop
         private void DrawMapEndTurn(Graphics g, RectangleF bounds)
         {
             bool hover = bounds.Contains(hoverPoint);
-            using (LinearGradientBrush wash = new LinearGradientBrush(bounds, Color.FromArgb(hover ? 96 : 73, 66, 44), Color.FromArgb(42, 43, 35), 0f))
+            if (Art.PaperMode) MapPaper.Surface(g, bounds, false, hover);
+            else using (LinearGradientBrush wash = new LinearGradientBrush(bounds, Color.FromArgb(hover ? 96 : 73, 66, 44), Color.FromArgb(42, 43, 35), 0f))
                 g.FillRectangle(wash, bounds);
             Art.Line(g, Color.FromArgb(160, Art.Gold), 1, bounds.Left, bounds.Top, bounds.Right, bounds.Top);
             Art.Line(g, Color.FromArgb(90, Art.Gold), 1, bounds.Left, bounds.Bottom, bounds.Right, bounds.Bottom);

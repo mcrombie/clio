@@ -139,8 +139,12 @@ namespace Clio.Desktop
             using (Brush veil = new SolidBrush(Color.FromArgb(237, 5, 10, 13))) g.FillRectangle(veil, 0, 0, 1600, 960);
             buttons.Clear();
             RectangleF pageBounds = new RectangleF(166, 55, 1268, 849);
-            using (LinearGradientBrush paper = new LinearGradientBrush(pageBounds, Color.FromArgb(26, 32, 33), Color.FromArgb(13, 20, 23), 90)) g.FillRectangle(paper, pageBounds);
-            Art.Grain(g, pageBounds);
+            if (Art.PaperMode) MapPaper.Surface(g, pageBounds, true);
+            else
+            {
+                using (LinearGradientBrush paper = new LinearGradientBrush(pageBounds, Color.FromArgb(26, 32, 33), Color.FromArgb(13, 20, 23), 90)) g.FillRectangle(paper, pageBounds);
+                Art.Grain(g, pageBounds);
+            }
             Art.Line(g, Color.FromArgb(102, Art.Gold), 1, 183, 74, 1417, 74);
             Art.Line(g, Color.FromArgb(102, Art.Gold), 1, 183, 885, 1417, 885);
             Art.Line(g, Color.FromArgb(42, Art.Gold), 1, 183, 74, 183, 885);

@@ -58,8 +58,8 @@ namespace Clio.Desktop
             if (!unitStackOpen || !mapSelectionOpen || page != 0 || BlockingSheet) return;
             RectangleF box = MapSelectionBounds;
             buttons.RemoveAll(button => button.Bounds.IntersectsWith(box));
-            Art.Fill(g, Color.FromArgb(65, 0, 0, 0), box.X - 4, box.Y + 5, box.Width + 8, box.Height + 3);
-            Art.Panel(g, box, Color.FromArgb(24, 35, 38), true);
+            Art.Fill(g, Art.PaperMode ? Color.FromArgb(25, MapPaper.Ink) : Color.FromArgb(65, 0, 0, 0), box.X - 4, box.Y + 5, box.Width + 8, box.Height + 3);
+            Art.Panel(g, box, Art.PaperMode ? MapPaper.Paper : Color.FromArgb(24, 35, 38), true);
             Typography.Label(g, "Together in this place", new RectangleF(box.X + 18, box.Y + 10, box.Width - 76, 22), 11, Art.Gold, .6f);
             bool known = MapCardKnown(unitStackCell);
             Typography.Line(g, known ? game.Place(unitStackCell) : "Beyond the known paths", new RectangleF(box.X + 17, box.Y + 32, box.Width - 34, 34), 26, Art.Ink, TypeRole.Heading, true);
@@ -90,7 +90,9 @@ namespace Clio.Desktop
         {
             bool selectedBand = choice.Kind == UnitKind.Band && choice.Id == commandedBandId;
             bool hover = row.Contains(hoverPoint);
-            Art.Fill(g, selectedBand ? Color.FromArgb(46, 52, 43) : hover ? Color.FromArgb(33, 46, 47) : Color.FromArgb(27, 39, 41), row.X, row.Y, row.Width, row.Height);
+            Color fill = Art.PaperMode ? selectedBand ? MapPaper.SelectedWash : hover ? MapPaper.HoverWash : MapPaper.Paper :
+                selectedBand ? Color.FromArgb(46, 52, 43) : hover ? Color.FromArgb(33, 46, 47) : Color.FromArgb(27, 39, 41);
+            Art.Fill(g, fill, row.X, row.Y, row.Width, row.Height);
             if (selectedBand) Art.Line(g, Art.Gold, 2, row.X, row.Y + 5, row.X, row.Bottom - 5);
             if (choice.Kind == UnitKind.Band) IdentityArt.DrawEmblem(g, game.TribeOf(choice.Id), new RectangleF(row.X + 7, row.Y + 9, 28, 28), false);
             else IdentityArt.DrawAnimal(g, choice.Animal, new RectangleF(row.X + 6, row.Y + 12, 30, 24), Art.Gold, choice.Detail.StartsWith("Companions", StringComparison.Ordinal));

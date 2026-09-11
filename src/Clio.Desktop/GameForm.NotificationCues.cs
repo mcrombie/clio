@@ -84,15 +84,15 @@ namespace Clio.Desktop
         {
             title = Timeline.DisplayText(game, notice.Title); detail = ""; icon = "history"; ink = Art.Gold;
             if (notice.Kind == StoryNoticeKind.Growth)
-            { icon = "people"; ink = Color.FromArgb(149, 189, 157); }
+            { icon = "people"; ink = Art.PaperMode ? MapPaper.Green : Color.FromArgb(149, 189, 157); }
             else if (notice.Kind == StoryNoticeKind.Loss || notice.Kind == StoryNoticeKind.Hunger || notice.Kind == StoryNoticeKind.Exposure ||
                 notice.Kind == StoryNoticeKind.Salt && notice.Title == "The long salt shortage takes lives")
-            { icon = "people"; ink = Color.FromArgb(224, 146, 124); }
+            { icon = "people"; ink = Art.PaperMode ? MapPaper.Warning : Color.FromArgb(224, 146, 124); }
             else if (notice.Kind == StoryNoticeKind.Contact || notice.Kind == StoryNoticeKind.Gathering)
                 icon = "cooperate";
             else if (notice.Kind == StoryNoticeKind.Combat)
             {
-                icon = "conflict"; ink = Color.FromArgb(224, 146, 124);
+                icon = "conflict"; ink = Art.PaperMode ? MapPaper.Warning : Color.FromArgb(224, 146, 124);
                 EncounterRecord encounter = game.Encounters.Records.FirstOrDefault(e => e.Id == notice.EncounterId);
                 if (encounter != null)
                 {

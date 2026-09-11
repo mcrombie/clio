@@ -13,8 +13,8 @@ namespace Clio.Desktop
         // land edges: a remembered region never reveals its extent into fog.
         private void DrawRegionBorders(Graphics g, Game game)
         {
-            using (Pen shadow = new Pen(Color.FromArgb(180, 20, 37, 37), 4.5f))
-            using (Pen line = new Pen(Color.FromArgb(230, 235, 221, 176), 1.8f))
+            using (Pen shadow = new Pen(Color.FromArgb(210, UnitArt.MapPaper), 4.5f))
+            using (Pen line = new Pen(Color.FromArgb(205, UnitArt.MapAccent), 1.5f))
             {
                 shadow.StartCap = shadow.EndCap = line.StartCap = line.EndCap = LineCap.Round;
                 foreach (ProjectedCell p in Visible)
@@ -76,8 +76,9 @@ namespace Clio.Desktop
                     // atlas scale where it can span several small hexes.
                     using (Region outside = new Region(box))
                     { outside.Exclude(knownLand); if (!outside.IsEmpty(g)) continue; }
-                    using (Brush backing = new SolidBrush(Color.FromArgb(175, 20, 37, 37))) g.FillRectangle(backing, box);
-                    Art.CenterText(g, "Region " + group.Key, box, 17, Color.FromArgb(242, 232, 208), true);
+                    using (Brush backing = new SolidBrush(Color.FromArgb(220, UnitArt.MapPaper))) g.FillRectangle(backing, box);
+                    using (Pen rule = new Pen(Color.FromArgb(120, UnitArt.MapAccent), .7f)) g.DrawLine(rule, box.Left + 9, box.Bottom - 2, box.Right - 9, box.Bottom - 2);
+                    Art.CenterText(g, "Region " + group.Key, box, 17, UnitArt.MapInk, true);
                     box.Inflate(18, 16); occupied.Add(box);
                     break;
                 }

@@ -8,7 +8,7 @@ namespace Clio.Desktop
     public sealed partial class GameForm
     {
         private int economyResourcePage, saltSourcePage;
-        private static readonly Color SaltWarning = Color.FromArgb(221, 145, 113);
+        private static Color SaltWarning { get { return Art.PaperMode ? MapPaper.Warning : Color.FromArgb(221, 145, 113); } }
 
         private void OpenSaltEconomy()
         { ClearMapTransient(); page = 1; economyPage = 2; economyResourcePage = 1; Invalidate(); }
@@ -49,7 +49,7 @@ namespace Clio.Desktop
 
         private void DrawMapSaltReserve(Graphics g, RectangleF bounds)
         {
-            if (bounds.Contains(hoverPoint)) Art.Fill(g, Color.FromArgb(34, 46, 49), bounds.X, bounds.Y, bounds.Width, bounds.Height);
+            if (bounds.Contains(hoverPoint)) Art.Fill(g, Art.PaperMode ? MapPaper.HoverWash : Color.FromArgb(34, 46, 49), bounds.X, bounds.Y, bounds.Width, bounds.Height);
             Typography.Label(g, "Salt", new RectangleF(bounds.X + 5, bounds.Y, 43, bounds.Height), 11, Art.Muted, .45f);
             double reserve = SaltEconomy.ReserveTurns(CurrentOrderBand);
             Typography.Line(g, SaltEconomy.Need(CurrentOrderBand) <= 0 ? "\u2014" : reserve.ToString("0.0") + " turns",
@@ -150,7 +150,7 @@ namespace Clio.Desktop
 
         private void DrawSaltSourceLink(Graphics g, int cell, RectangleF bounds)
         {
-            if (bounds.Contains(hoverPoint)) Art.Fill(g, Color.FromArgb(36, 48, 49), bounds.X, bounds.Y, bounds.Width, bounds.Height);
+            if (bounds.Contains(hoverPoint)) Art.Fill(g, Art.PaperMode ? MapPaper.HoverWash : Color.FromArgb(36, 48, 49), bounds.X, bounds.Y, bounds.Width, bounds.Height);
             DrawSaltGlyph(g, new RectangleF(bounds.X + 2, bounds.Y + 7, 26, 28), Art.Gold);
             Typography.Line(g, game.Place(cell), new RectangleF(bounds.X + 41, bounds.Y - 1, bounds.Width - 68, 27), 20, Art.Ink, TypeRole.Heading, true);
             bool adjacent = game.World.Cells[CurrentOrderBand.CellId].Neighbors.Contains(cell);

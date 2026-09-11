@@ -41,8 +41,8 @@ namespace Clio.Desktop
                     knownHex.AddPolygon(cell.Polygon); g.SetClip(knownHex, CombineMode.Intersect);
                     bool beacon = game.TerrainTravelEnabled && InterestHighlights && detailed;
                     bool hot = RegisterOpportunity(cell, point, size, SaltOpportunity, beacon);
-                    if (hot) DrawOpportunityEmphasis(g, cell, Color.FromArgb(218, 238, 220));
-                    if (beacon) DrawOpportunityBeacon(g, point, size, Color.FromArgb(218, 238, 220), 1, source, hot);
+                    if (hot) DrawOpportunityEmphasis(g, cell, UnitArt.MapRoute);
+                    if (beacon) DrawOpportunityBeacon(g, point, size, UnitArt.MapRoute, 1, source, hot);
                     else DrawSaltSourceIcon(g, source, box, detailed || hot);
                 }
                 g.Restore(state); saltMarkerCells.Add(cell.Cell.Id);
@@ -59,11 +59,10 @@ namespace Clio.Desktop
                 g.ScaleTransform(box.Width / 24, box.Height / 24);
                 if (badge)
                 {
-                    using (Brush shadow = new SolidBrush(Color.FromArgb(70, 7, 20, 20))) g.FillEllipse(shadow, -10.5f, -9, 22, 22);
-                    using (Brush ground = new SolidBrush(Color.FromArgb(207, 31, 49, 49))) g.FillEllipse(ground, -11, -11, 22, 22);
-                    using (Pen rim = new Pen(Color.FromArgb(125, 204, 211, 186), .8f)) g.DrawEllipse(rim, -11, -11, 22, 22);
+                    using (Brush ground = new SolidBrush(Art.PaperMode ? Color.FromArgb(242, UnitArt.MapPaper) : Color.FromArgb(207, 31, 49, 49))) g.FillEllipse(ground, -11, -11, 22, 22);
+                    using (Pen rim = new Pen(Art.PaperMode ? Color.FromArgb(165, UnitArt.MapInk) : Color.FromArgb(125, 204, 211, 186), .8f)) g.DrawEllipse(rim, -11, -11, 22, 22);
                 }
-                using (Pen water = new Pen(Color.FromArgb(189, 142, 192, 194), 1.1f))
+                using (Pen water = new Pen(Art.PaperMode ? UnitArt.MapRoute : Color.FromArgb(189, 142, 192, 194), 1.1f))
                 {
                     if (source == SaltSource.Coastal)
                     {
@@ -83,9 +82,10 @@ namespace Clio.Desktop
         {
             PointF top = new PointF(x, y), left = new PointF(x - width * .7f, y + height * .33f);
             PointF right = new PointF(x + width * .7f, y + height * .33f), bottom = new PointF(x, y + height);
-            using (Brush light = new SolidBrush(Color.FromArgb(242, 243, 226))) g.FillPolygon(light, new[] { top, left, bottom });
-            using (Brush shade = new SolidBrush(Color.FromArgb(178, 203, 195))) g.FillPolygon(shade, new[] { top, right, bottom });
-            using (Pen rim = new Pen(Color.FromArgb(140, 75, 104, 96), .55f)) g.DrawPolygon(rim, new[] { top, left, bottom, right });
+            using (Brush light = new SolidBrush(Art.PaperMode ? UnitArt.MapPaper : Color.FromArgb(242, 243, 226))) g.FillPolygon(light, new[] { top, left, bottom });
+            using (Brush shade = new SolidBrush(Art.PaperMode ? Color.FromArgb(189, 191, 172) : Color.FromArgb(178, 203, 195))) g.FillPolygon(shade, new[] { top, right, bottom });
+            using (Pen rim = new Pen(Art.PaperMode ? UnitArt.MapInk : Color.FromArgb(140, 75, 104, 96), .7f))
+            { g.DrawPolygon(rim, new[] { top, left, bottom, right }); g.DrawLine(rim, top, bottom); }
         }
     }
 }

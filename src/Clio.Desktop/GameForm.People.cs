@@ -10,7 +10,7 @@ namespace Clio.Desktop
     public sealed partial class GameForm
     {
         private int peopleBandPage, peopleAnimalPage, inspectorAnimalPage;
-        private static readonly Color LedgerGreen = Color.FromArgb(146, 182, 157);
+        private static Color LedgerGreen { get { return Art.PaperMode ? MapPaper.Green : Color.FromArgb(146, 182, 157); } }
 
         private void DrawPeople(Graphics g)
         {

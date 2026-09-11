@@ -9,8 +9,8 @@ namespace Clio.Desktop
     // No fonts, external images, runtime randomness, or simulation state are required.
     internal static class IdentityArt
     {
-        private static readonly Color Dark = Color.FromArgb(26, 43, 43);
-        private static readonly Color Parchment = Color.FromArgb(243, 225, 181);
+        private static Color Dark { get { return Art.PaperMode ? UnitArt.MapInk : Color.FromArgb(26, 43, 43); } }
+        private static Color Parchment { get { return Art.PaperMode ? UnitArt.MapPaper : Color.FromArgb(243, 225, 181); } }
         private static readonly Color[] Colors = {
             Color.FromArgb(225, 188, 113), Color.FromArgb(103, 193, 183),
             Color.FromArgb(217, 130, 103), Color.FromArgb(150, 169, 221),
@@ -25,7 +25,11 @@ namespace Clio.Desktop
             "Sun", "Crescent", "Stag", "Twin peaks", "Leaf", "Three rivers", "Star", "Hearth"
         };
         private static int Index(int id) { return id & Int32.MaxValue; }
-        public static Color ColorFor(int id) { return Colors[Index(id) % Colors.Length]; }
+        public static Color ColorFor(int id)
+        {
+            Color color = Colors[Index(id) % Colors.Length];
+            return Art.PaperMode ? Mix(color, UnitArt.MapInk, .43) : color;
+        }
         public static string SigilName(int id)
         { return Sigils[Index(id) % Sigils.Length] + ((Index(id) / 8) % 2 == 1 ? " shield" : " seal"); }
 
@@ -41,10 +45,10 @@ namespace Clio.Desktop
                 Color color = ColorFor(id);
                 bool shield = (Index(id) / 8) % 2 == 1;
                 using (GraphicsPath seal = Seal(shield, 4))
-                using (Brush field = new SolidBrush(filled ? color : Color.FromArgb(238, Dark)))
+                using (Brush field = new SolidBrush(Art.PaperMode ? filled ? Mix(Parchment, color, .12) : Parchment : filled ? color : Color.FromArgb(238, Dark)))
                 using (Pen edge = new Pen(color, 2.6f))
                 {
-                    using (Brush shadow = new SolidBrush(Color.FromArgb(60, 0, 0, 0)))
+                    using (Brush shadow = new SolidBrush(Color.FromArgb(Art.PaperMode ? 18 : 60, 0, 0, 0)))
                     {
                         g.TranslateTransform(0, 3); g.FillPath(shadow, seal); g.TranslateTransform(0, -3);
                     }
@@ -56,7 +60,7 @@ namespace Clio.Desktop
                 }
                 GraphicsState symbolState = g.Save();
                 g.TranslateTransform(22, shield ? 18 : 22); g.ScaleTransform(.56f, .56f);
-                Glyph(g, id, filled ? Dark : color);
+                Glyph(g, id, Art.PaperMode ? color : filled ? Dark : color);
                 g.Restore(symbolState);
                 if (!shield && size >= 42)
                     using (Brush dots = new SolidBrush(color))

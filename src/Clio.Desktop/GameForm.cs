@@ -48,7 +48,9 @@ namespace Clio.Desktop
         private RectangleF campaignSurface = new RectangleF(0, 0, 1600, 960);
         private RectangleF InputViewport { get { return page == 0 && !BattleOverlayActive ? ClientRectangle : GameViewport; } }
         private string presentationCaption = "";
-        private static readonly Color Background = Color.FromArgb(13, 22, 27), Panel = Color.FromArgb(24, 34, 38), Border = Color.FromArgb(57, 67, 66);
+        private static Color Background { get { return Art.PaperMode ? MapPaper.Ground : Color.FromArgb(13, 22, 27); } }
+        private static Color Panel { get { return Art.PaperMode ? MapPaper.Paper : Color.FromArgb(24, 34, 38); } }
+        private static Color Border { get { return Art.PaperMode ? MapPaper.Rule : Color.FromArgb(57, 67, 66); } }
         public GameForm() : this(null) { }
         internal GameForm(string preferencesPath)
         {
@@ -113,6 +115,13 @@ namespace Clio.Desktop
             finally { campaignSurface = previousSurface; }
         }
         private void Draw(Graphics g)
+        {
+            bool previous = Art.PaperMode;
+            Art.PaperMode = page == 0 && !BattleOverlayActive;
+            try { DrawFrame(g); }
+            finally { Art.PaperMode = previous; }
+        }
+        private void DrawFrame(Graphics g)
         {
             g.SmoothingMode = SmoothingMode.AntiAlias; g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
             g.Clear(Background); buttons.Clear();
@@ -317,11 +326,15 @@ namespace Clio.Desktop
         {
             RectangleF bounds = new RectangleF(x, y, w, h);
             bool disabled = action && (CurrentOrderActions <= 0 || game.IsOver || game.TribesEnabled && !HasCommandBand), hover = bounds.Contains(hoverPoint) && !disabled;
-            Color fill = active ? Color.FromArgb(65, 65, 49) : Color.FromArgb(27, 39, 43);
-            if (hover) fill = Art.Mix(fill, Art.Gold, 0.11);
-            using (LinearGradientBrush brush = new LinearGradientBrush(bounds, Art.Mix(fill, Art.Ink, 0.025), fill, 90)) g.FillRectangle(brush, bounds);
-            using (Pen pen = new Pen(active ? Art.Mix(Art.Gold, Background, 0.16) : hover ? Art.Mix(Border, Art.Gold, 0.50) : Border, 1)) g.DrawRectangle(pen, x, y, w, h);
-            Typography.Line(g, text, new RectangleF(x + 6, y, w - 12, h), 13.5f, disabled ? Color.FromArgb(103, 113, 111) : active ? Art.Gold : Art.Ink, TypeRole.Action, true, StringAlignment.Center);
+            if (Art.PaperMode) MapPaper.Surface(g, bounds, false, active || hover);
+            else
+            {
+                Color fill = active ? Color.FromArgb(65, 65, 49) : Color.FromArgb(27, 39, 43);
+                if (hover) fill = Art.Mix(fill, Art.Gold, 0.11);
+                using (LinearGradientBrush brush = new LinearGradientBrush(bounds, Art.Mix(fill, Art.Ink, 0.025), fill, 90)) g.FillRectangle(brush, bounds);
+                using (Pen pen = new Pen(active ? Art.Mix(Art.Gold, Background, 0.16) : hover ? Art.Mix(Border, Art.Gold, 0.50) : Border, 1)) g.DrawRectangle(pen, x, y, w, h);
+            }
+            Typography.Line(g, text, new RectangleF(x + 6, y, w - 12, h), 13.5f, disabled ? (Art.PaperMode ? MapPaper.DisabledInk : Color.FromArgb(103, 113, 111)) : active ? Art.Gold : Art.Ink, TypeRole.Action, true, StringAlignment.Center);
             buttons.Add(new UiButton(bounds, click));
         }
         private void Navigation(Graphics g, string text, float x, float y, float w, float h, Action click, bool active)
@@ -345,10 +358,18 @@ namespace Clio.Desktop
             bool disabled = !primary && (CurrentOrderActions <= 0 || game.IsOver || game.TribesEnabled && !HasCommandBand), hover = bounds.Contains(hoverPoint) && !disabled;
             Color fill = primary ? Color.FromArgb(188, 157, 101) : Color.FromArgb(29, 41, 45);
             Color foreground = primary ? Color.FromArgb(26, 32, 31) : disabled ? Color.FromArgb(108, 117, 112) : Art.Ink;
-            if (hover) fill = Art.Mix(fill, Art.Ink, primary ? 0.14 : 0.07);
-            using (LinearGradientBrush brush = new LinearGradientBrush(bounds, Art.Mix(fill, Art.Ink, primary ? 0.08 : 0.025), fill, 90)) g.FillRectangle(brush, bounds);
-            using (Pen border = new Pen(primary ? Art.Gold : hover ? Art.Mix(Border, Art.Gold, 0.5) : Border, 1)) g.DrawRectangle(border, x, y, width, height);
-            Art.Line(g, primary ? Color.FromArgb(63, 239, 225, 187) : Color.FromArgb(15, Art.Ink), 1, x + 1, y + 1, x + width - 1, y + 1);
+            if (Art.PaperMode)
+            {
+                MapPaper.Surface(g, bounds, false, primary || hover);
+                foreground = disabled ? MapPaper.DisabledInk : MapPaper.Ink;
+            }
+            else
+            {
+                if (hover) fill = Art.Mix(fill, Art.Ink, primary ? 0.14 : 0.07);
+                using (LinearGradientBrush brush = new LinearGradientBrush(bounds, Art.Mix(fill, Art.Ink, primary ? 0.08 : 0.025), fill, 90)) g.FillRectangle(brush, bounds);
+                using (Pen border = new Pen(primary ? Art.Gold : hover ? Art.Mix(Border, Art.Gold, 0.5) : Border, 1)) g.DrawRectangle(border, x, y, width, height);
+                Art.Line(g, primary ? Color.FromArgb(63, 239, 225, 187) : Color.FromArgb(15, Art.Ink), 1, x + 1, y + 1, x + width - 1, y + 1);
+            }
             Art.Icon(g, icon, x + 12, y + (height - 19) / 2, 19, primary ? foreground : disabled ? foreground : Art.Gold);
             Typography.Line(g, text, new RectangleF(x + 41, y, width - 46 - (shortcut.Length > 0 ? (primary ? 48 : 20) : 0), height), 14, foreground, TypeRole.Action, true);
             if (shortcut.Length > 0) Typography.Line(g, shortcut, new RectangleF(x + width - (primary ? 56 : 31), y + 8, primary ? 47 : 22, height - 16), primary ? 10 : 11, primary ? foreground : Art.Muted, TypeRole.Utility, false, StringAlignment.Center);

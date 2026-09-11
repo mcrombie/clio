@@ -138,7 +138,7 @@ namespace Clio.Desktop
                 return;
             }
 
-            using (Brush shade = new SolidBrush(Color.FromArgb(185, 6, 13, 17))) g.FillRectangle(shade, 0, 0, 1600, 960);
+            using (Brush shade = new SolidBrush(Art.PaperMode ? Color.FromArgb(110, MapPaper.MutedInk) : Color.FromArgb(185, 6, 13, 17))) g.FillRectangle(shade, 0, 0, 1600, 960);
             buttons.Clear();
             RectangleF sheet = new RectangleF(388, 181, 824, 639);
             Art.Panel(g, sheet, Color.FromArgb(27, 38, 40), true);

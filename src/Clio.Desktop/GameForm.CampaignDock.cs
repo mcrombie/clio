@@ -42,9 +42,12 @@ namespace Clio.Desktop
         private void DrawCampaignBacking(Graphics g, RectangleF bounds)
         {
             using (GraphicsPath path = CampaignCapsule(bounds, 12))
-            using (Brush fill = new SolidBrush(Color.FromArgb(226, 17, 29, 33)))
-            using (Pen edge = new Pen(Color.FromArgb(117, Art.Border), .8f))
-            { g.FillPath(fill, path); g.DrawPath(edge, path); }
+            {
+                if (Art.PaperMode) MapPaper.Shape(g, path, bounds);
+                else using (Brush fill = new SolidBrush(Color.FromArgb(226, 17, 29, 33)))
+                    using (Pen edge = new Pen(Color.FromArgb(117, Art.Border), .8f))
+                    { g.FillPath(fill, path); g.DrawPath(edge, path); }
+            }
         }
 
         private void DrawCampaignDock(Graphics g)
@@ -120,9 +123,12 @@ namespace Clio.Desktop
         {
             bool hover = bounds.Contains(hoverPoint);
             using (GraphicsPath path = CampaignCapsule(bounds, 12))
-            using (Brush fill = new SolidBrush(Color.FromArgb(238, active || hover ? Color.FromArgb(54, 60, 48) : Color.FromArgb(21, 34, 38))))
-            using (Pen edge = new Pen(active || hover ? Color.FromArgb(180, Art.Gold) : Color.FromArgb(125, Art.Border), .9f))
-            { g.FillPath(fill, path); g.DrawPath(edge, path); }
+            {
+                if (Art.PaperMode) MapPaper.Shape(g, path, bounds, active, hover);
+                else using (Brush fill = new SolidBrush(Color.FromArgb(238, active || hover ? Color.FromArgb(54, 60, 48) : Color.FromArgb(21, 34, 38))))
+                    using (Pen edge = new Pen(active || hover ? Color.FromArgb(180, Art.Gold) : Color.FromArgb(125, Art.Border), .9f))
+                    { g.FillPath(fill, path); g.DrawPath(edge, path); }
+            }
             Typography.Line(g, text, new RectangleF(bounds.X + 8, bounds.Y, bounds.Width - 16, bounds.Height), 18, active ? Art.Gold : Art.Ink, TypeRole.Action, true, StringAlignment.Center);
             buttons.Add(new UiButton(bounds, click) { Tip = tip });
         }
@@ -148,7 +154,8 @@ namespace Clio.Desktop
             using (GraphicsPath ring = new GraphicsPath())
             {
                 ring.AddEllipse(box);
-                using (PathGradientBrush wash = new PathGradientBrush(ring))
+                if (Art.PaperMode) MapPaper.Shape(g, ring, box, true, hover);
+                else using (PathGradientBrush wash = new PathGradientBrush(ring))
                 {
                     wash.CenterColor = hover ? Color.FromArgb(90, 85, 57) : Color.FromArgb(60, 63, 48);
                     wash.SurroundColors = new[] { Color.FromArgb(16, 30, 35) };

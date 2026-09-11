@@ -41,7 +41,7 @@ namespace Clio.Desktop
             CampaignRoundButton(g, "menu", new RectangleF(18, 14, 42, 42), ToggleCampaignSystemMenu,
                 campaignSystemMenuOpen, "Clio menu\nSave, load, start a new story or change fullscreen. Escape closes the menu.");
             RectangleF identity = new RectangleF(68, 14, 224, 42);
-            if (identity.Contains(hoverPoint)) Art.Fill(g, Color.FromArgb(35, 48, 49), identity.X, identity.Y, identity.Width, identity.Height);
+            if (identity.Contains(hoverPoint)) Art.Fill(g, Art.PaperMode ? MapPaper.HoverWash : Color.FromArgb(35, 48, 49), identity.X, identity.Y, identity.Width, identity.Height);
             IdentityArt.DrawEmblem(g, game.TribeOf(leader.Id), new RectangleF(75, 20, 30, 30), false);
             Typography.Line(g, leader.Name, new RectangleF(114, 17, 173, 35), 23, Art.Ink, TypeRole.Heading, true);
             buttons.Add(new UiButton(identity, delegate { OpenEconomy(0); })
@@ -112,29 +112,37 @@ namespace Clio.Desktop
         private void CampaignMetric(Graphics g, float x, string icon, string label, string value, bool shortage, string tip, Action click)
         {
             RectangleF bounds = new RectangleF(x + 3, 15, 165.5f, 40);
-            if (bounds.Contains(hoverPoint)) Art.Fill(g, Color.FromArgb(36, 49, 49), bounds.X, bounds.Y, bounds.Width, bounds.Height);
+            if (bounds.Contains(hoverPoint)) Art.Fill(g, Art.PaperMode ? MapPaper.HoverWash : Color.FromArgb(36, 49, 49), bounds.X, bounds.Y, bounds.Width, bounds.Height);
             RectangleF glyph = new RectangleF(x + 12, 24, 23, 23);
             if (icon == "salt") DrawSaltGlyph(g, glyph, Art.Gold);
             else if (icon == "wood") DrawWoodGlyph(g, glyph, Art.Gold);
             else Art.Icon(g, icon, glyph.X, glyph.Y, glyph.Width, Art.Gold);
             Typography.Label(g, label, new RectangleF(x + 45, 16, 113, 14), 10, Art.Muted, .4f);
             Typography.Line(g, value, new RectangleF(x + 44, 28, shortage ? 90 : 115, 27), 23,
-                shortage ? BandPanelWarning : Art.Ink, TypeRole.Number, true);
+                shortage ? Art.PaperMode ? MapPaper.Warning : BandPanelWarning : Art.Ink, TypeRole.Number, true);
             if (shortage)
-                Typography.Line(g, "!", new RectangleF(x + 138, 27, 19, 27), 20, BandPanelWarning, TypeRole.Number, true, StringAlignment.Center);
+                Typography.Line(g, "!", new RectangleF(x + 138, 27, 19, 27), 20, Art.PaperMode ? MapPaper.Warning : BandPanelWarning, TypeRole.Number, true, StringAlignment.Center);
             buttons.Add(new UiButton(bounds, click) { Tip = tip });
         }
 
         private void CampaignRoundButton(Graphics g, string icon, RectangleF bounds, Action click, bool active, string tip)
         {
             bool hover = bounds.Contains(hoverPoint);
-            using (Brush shadow = new SolidBrush(Color.FromArgb(105, 0, 0, 0)))
-                g.FillEllipse(shadow, bounds.X + 1, bounds.Y + 3, bounds.Width, bounds.Height);
-            using (LinearGradientBrush fill = new LinearGradientBrush(bounds,
-                active ? Color.FromArgb(81, 74, 49) : hover ? Color.FromArgb(51, 63, 62) : Color.FromArgb(33, 46, 49),
-                Color.FromArgb(17, 28, 32), 90)) g.FillEllipse(fill, bounds);
-            using (Pen ring = new Pen(active || hover ? Art.Gold : Color.FromArgb(113, 116, 94), active ? 1.8f : 1))
-                g.DrawEllipse(ring, bounds.X + 1, bounds.Y + 1, bounds.Width - 2, bounds.Height - 2);
+            if (Art.PaperMode)
+            {
+                using (GraphicsPath shape = new GraphicsPath())
+                { shape.AddEllipse(bounds); MapPaper.Shape(g, shape, bounds, active, hover); }
+            }
+            else
+            {
+                using (Brush shadow = new SolidBrush(Color.FromArgb(105, 0, 0, 0)))
+                    g.FillEllipse(shadow, bounds.X + 1, bounds.Y + 3, bounds.Width, bounds.Height);
+                using (LinearGradientBrush fill = new LinearGradientBrush(bounds,
+                    active ? Color.FromArgb(81, 74, 49) : hover ? Color.FromArgb(51, 63, 62) : Color.FromArgb(33, 46, 49),
+                    Color.FromArgb(17, 28, 32), 90)) g.FillEllipse(fill, bounds);
+                using (Pen ring = new Pen(active || hover ? Art.Gold : Color.FromArgb(113, 116, 94), active ? 1.8f : 1))
+                    g.DrawEllipse(ring, bounds.X + 1, bounds.Y + 1, bounds.Width - 2, bounds.Height - 2);
+            }
             Color ink = active || hover ? Art.Ink : Art.Gold;
             if (icon == "menu")
                 for (int line = 0; line < 3; line++) Art.Line(g, ink, 1.7f, bounds.X + 12, bounds.Y + 13 + line * 7, bounds.Right - 12, bounds.Y + 13 + line * 7);
@@ -144,7 +152,8 @@ namespace Clio.Desktop
 
         private void CampaignCue(Graphics g, RectangleF bounds, string icon, int count, Action click, string tip)
         {
-            Art.Panel(g, bounds, bounds.Contains(hoverPoint) ? Color.FromArgb(39, 50, 49) : Color.FromArgb(24, 34, 37), false);
+            if (Art.PaperMode) MapPaper.Surface(g, bounds, false, bounds.Contains(hoverPoint));
+            else Art.Panel(g, bounds, bounds.Contains(hoverPoint) ? Color.FromArgb(39, 50, 49) : Color.FromArgb(24, 34, 37), false);
             Art.Icon(g, icon, bounds.X + 9, bounds.Y + 8, 22, count > 0 ? Art.Gold : Art.Muted);
             Typography.Line(g, count > 0 ? count.ToString("N0") : "--", new RectangleF(bounds.X + 36, bounds.Y + 4, bounds.Width - 43, 30),
                 19, count > 0 ? Art.Gold : Art.Muted, TypeRole.Number, true, StringAlignment.Center);
@@ -156,7 +165,7 @@ namespace Clio.Desktop
             if (!CampaignSystemMenuOpen || BlockingSheet) return;
             RectangleF box = CampaignSystemMenuBounds;
             buttons.RemoveAll(button => button.Bounds.IntersectsWith(box));
-            Art.Fill(g, Color.FromArgb(100, 0, 0, 0), box.X + 4, box.Y + 5, box.Width, box.Height);
+            Art.Fill(g, Art.PaperMode ? Color.FromArgb(27, MapPaper.Ink) : Color.FromArgb(100, 0, 0, 0), box.X + 4, box.Y + 5, box.Width, box.Height);
             Art.Panel(g, box, Color.FromArgb(24, 34, 37), true);
             Typography.Line(g, "Clio", new RectangleF(32, 81, 195, 31), 26, Art.Ink, TypeRole.Heading, true);
             Button(g, "\u00d7", 254, 82, 28, 28, delegate { CloseCampaignSystemMenu(); buttons.Clear(); Invalidate(); }, false, false);

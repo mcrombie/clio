@@ -33,12 +33,12 @@ namespace Clio.Desktop
             for (int i = 1; i < reunionCells.Length; i++)
                 if (TravelRules.MoveCost(game, actor, reunionCells[i - 1], reunionCells[i]) <= 0) return;
 
-            Color route = Color.FromArgb(215, 220, 185, 112);
+            Color route = UnitArt.MapRoute;
             GraphicsState state = g.Save();
             try
             {
                 g.SetClip(Bounds, CombineMode.Intersect);
-                using (Pen shadow = new Pen(Color.FromArgb(145, 15, 32, 34), 5.5f) { StartCap = LineCap.Round, EndCap = LineCap.Round })
+                using (Pen shadow = new Pen(Color.FromArgb(215, UnitArt.MapPaper), 5.5f) { StartCap = LineCap.Round, EndCap = LineCap.Round })
                 using (Pen path = new Pen(route, 2f) { DashPattern = new[] { 2.4f, 3.1f }, StartCap = LineCap.Round, EndCap = LineCap.Round })
                 using (Brush waypoint = new SolidBrush(route))
                 for (int i = 1; i < reunionCells.Length; i++)

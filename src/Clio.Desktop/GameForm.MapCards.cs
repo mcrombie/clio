@@ -102,7 +102,7 @@ namespace Clio.Desktop
                 x = Math.Max(mapArea.Left + 12, MapSelectionBounds.Left - width - 14);
                 box = new RectangleF(x, y, width, height);
             }
-            Art.Fill(g, Color.FromArgb(54, 0, 0, 0), box.X + 4, box.Y + 5, box.Width, box.Height);
+            Art.Fill(g, Art.PaperMode ? Color.FromArgb(20, MapPaper.Ink) : Color.FromArgb(54, 0, 0, 0), box.X + 4, box.Y + 5, box.Width, box.Height);
             Art.Panel(g, box, Color.FromArgb(24, 35, 38), false);
             Art.Line(g, Art.Gold, 1, x + 14, y, x + 62, y);
             Typography.Line(g, title, new RectangleF(x + 13, y + 10, 304, 34), 25, Art.Ink, TypeRole.Heading, true);
@@ -168,8 +168,8 @@ namespace Clio.Desktop
             string[] text = MapOpportunityText(kind, cell);
             if (text == null) return;
             RectangleF box = OpportunityNoteBounds(anchor);
-            Color ink = kind == MapRenderer.FoodOpportunity ? MapRenderer.FoodInterestInk : kind == MapRenderer.ExplorationOpportunity ? MapRenderer.FrontierInterestInk : LandscapeSalt;
-            Art.Fill(g, Color.FromArgb(64, 0, 0, 0), box.X + 4, box.Y + 5, box.Width, box.Height);
+            Color ink = kind == MapRenderer.FoodOpportunity ? MapRenderer.FoodInterestInk : kind == MapRenderer.ExplorationOpportunity ? MapRenderer.FrontierInterestInk : Art.PaperMode ? MapPaper.Blue : LandscapeSalt;
+            Art.Fill(g, Art.PaperMode ? Color.FromArgb(20, MapPaper.Ink) : Color.FromArgb(64, 0, 0, 0), box.X + 4, box.Y + 5, box.Width, box.Height);
             Art.Panel(g, box, Color.FromArgb(24, 35, 38), false);
             Art.Line(g, ink, 2, box.X + 15, box.Y, box.Right - 15, box.Y);
             DrawLandscapeMark(g, kind == MapRenderer.FoodOpportunity ? 0 : kind == MapRenderer.SaltOpportunity ? 1 : 2, new RectangleF(box.X + 16, box.Y + 13, 19, 19), ink);
@@ -200,7 +200,7 @@ namespace Clio.Desktop
             if (unitStackOpen) { DrawUnitStackCard(g); return; }
             RectangleF bounds = MapSelectionBounds;
             buttons.RemoveAll(b => b.Bounds.IntersectsWith(bounds));
-            Art.Fill(g, Color.FromArgb(65, 0, 0, 0), bounds.X - 4, bounds.Y + 5, bounds.Width + 8, bounds.Height + 3);
+            Art.Fill(g, Art.PaperMode ? Color.FromArgb(23, MapPaper.Ink) : Color.FromArgb(65, 0, 0, 0), bounds.X - 4, bounds.Y + 5, bounds.Width + 8, bounds.Height + 3);
             Art.Panel(g, bounds, Color.FromArgb(24, 35, 38), true);
             if (!mapCardExpanded) DrawMapCompactCard(g, bounds);
             else if (inspectorPage == 1) DrawMapBandCard(g, MapCardBand(inspectedBandId));

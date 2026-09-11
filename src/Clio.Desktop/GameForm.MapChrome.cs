@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using Clio.Simulation;
 
 namespace Clio.Desktop
@@ -52,7 +53,7 @@ namespace Clio.Desktop
             DrawFloatingMapPanel(g, new RectangleF(salt ? 383 : 502, 102, salt ? 966 : 847, 46));
             DrawFloatingMapPanel(g, new RectangleF(1373, 102, 211, 46));
             RectangleF identity = new RectangleF(28, 106, salt ? 346 : 464, 37);
-            if (identity.Contains(hoverPoint)) Art.Fill(g, Color.FromArgb(34, 46, 49), identity.X, identity.Y, identity.Width, identity.Height);
+            if (identity.Contains(hoverPoint)) Art.Fill(g, Art.PaperMode ? MapPaper.HoverWash : Color.FromArgb(34, 46, 49), identity.X, identity.Y, identity.Width, identity.Height);
             IdentityArt.DrawEmblem(g, game.TribeOf(CurrentOrderBand.Id), new RectangleF(32, 108, 33, 33), false);
             Typography.Line(g, CurrentOrderBand.Name, new RectangleF(79, 107, salt ? 281 : 399, 36), 28, Art.Ink, TypeRole.Heading, true);
             buttons.Add(new UiButton(identity, delegate { ClearMapTransient(); OpenEconomy(0); }));
@@ -65,7 +66,7 @@ namespace Clio.Desktop
             double needs = game.Upkeep(CurrentOrderBand) + BandEconomy.DomesticEffects(game, CurrentOrderBand).AnimalCare;
             double security = needs <= 0 ? 0 : CurrentOrderBand.Food / needs;
             MapRibbonMetric(g, new RectangleF(salt ? 799 : 990, 106, salt ? 275 : 323, 38), "Food security", needs <= 0 ? "\u2014" : security.ToString("0.0") + "\u00d7 needs", salt ? 100 : 126,
-                security < 1 && needs > 0 ? Color.FromArgb(221, 145, 113) : Art.Ink, 0,
+                security < 1 && needs > 0 ? Art.PaperMode ? MapPaper.Warning : Color.FromArgb(221, 145, 113) : Art.Ink, 0,
                 "Current provisions divided by your people's needs and companion care. Open Economy for the full forecast.");
             if (salt) DrawMapSaltReserve(g, new RectangleF(1090, 106, 238, 38));
             DrawMapAdviserEntries(g);
@@ -73,7 +74,7 @@ namespace Clio.Desktop
 
         private void MapRibbonMetric(Graphics g, RectangleF bounds, string label, string value, float labelWidth, Color color, int ledger, string tip)
         {
-            if (bounds.Contains(hoverPoint)) Art.Fill(g, Color.FromArgb(34, 46, 49), bounds.X, bounds.Y, bounds.Width, bounds.Height);
+            if (bounds.Contains(hoverPoint)) Art.Fill(g, Art.PaperMode ? MapPaper.HoverWash : Color.FromArgb(34, 46, 49), bounds.X, bounds.Y, bounds.Width, bounds.Height);
             Typography.Label(g, label, new RectangleF(bounds.X + 5, bounds.Y, labelWidth - 9, bounds.Height), 11, Art.Muted, .45f);
             Typography.Line(g, value, new RectangleF(bounds.X + labelWidth, bounds.Y, bounds.Width - labelWidth - 6, bounds.Height), 27, color, TypeRole.Number, true);
             buttons.Add(new UiButton(bounds, delegate { ClearMapTransient(); OpenEconomy(ledger); })); MapTip(tip);
@@ -176,7 +177,12 @@ namespace Clio.Desktop
         {
             bool hover = bounds.Contains(hoverPoint);
             Color fill = active ? Color.FromArgb(69, 67, 47) : hover ? Color.FromArgb(40, 52, 53) : Color.FromArgb(29, 41, 45);
-            if (page == 0)
+            if (Art.PaperMode)
+            {
+                using (GraphicsPath shape = new GraphicsPath())
+                { shape.AddEllipse(bounds); MapPaper.Shape(g, shape, bounds, active, hover); }
+            }
+            else if (page == 0)
             {
                 using (Brush wash = new SolidBrush(Color.FromArgb(active || hover ? 246 : 220, fill))) g.FillEllipse(wash, bounds);
                 using (Pen edge = new Pen(active || hover ? Art.Gold : Color.FromArgb(130, Border), active ? 1.5f : .8f)) g.DrawEllipse(edge, bounds);
@@ -186,7 +192,7 @@ namespace Clio.Desktop
                 Art.Fill(g, fill, bounds.X, bounds.Y, bounds.Width, bounds.Height);
                 using (Pen edge = new Pen(active || hover ? Art.Gold : Border, 1)) g.DrawRectangle(edge, bounds.X, bounds.Y, bounds.Width, bounds.Height);
             }
-            Color ink = disabled ? Color.FromArgb(108, 117, 112) : Art.Gold;
+            Color ink = disabled ? Art.PaperMode ? MapPaper.DisabledInk : Color.FromArgb(108, 117, 112) : Art.Gold;
             float glyphSize = Math.Min(25, bounds.Height - 13);
             RectangleF glyph = new RectangleF(bounds.X + (bounds.Width - glyphSize) / 2, bounds.Y + (bounds.Height - glyphSize) / 2, glyphSize, glyphSize);
             if (icon == "explore") MapRenderer.DrawFrontierInterestIcon(g, glyph);
@@ -204,7 +210,7 @@ namespace Clio.Desktop
             // any card target underneath it. Empty menu space is consumed by
             // the parent form's MapMenuContains input guard.
             buttons.RemoveAll(button => button.Bounds.IntersectsWith(bounds));
-            Art.Fill(g, Color.FromArgb(82, 0, 0, 0), bounds.X + 5, bounds.Y + 5, bounds.Width, bounds.Height);
+            Art.Fill(g, Art.PaperMode ? Color.FromArgb(24, MapPaper.Ink) : Color.FromArgb(82, 0, 0, 0), bounds.X + 5, bounds.Y + 5, bounds.Width, bounds.Height);
             Art.Panel(g, bounds, Color.FromArgb(23, 35, 40), true);
             Typography.Line(g, mapMenu == 1 ? "Read the map" : mapMenu == 4 ? "Reading the landscape" : "Watching the story", new RectangleF(bounds.X + 19, bounds.Y + 10, bounds.Width - 74, 31), 25, Art.Ink, TypeRole.Heading, true);
             Button(g, "\u00d7", bounds.Right - 43, bounds.Y + 11, 28, 28, delegate { CloseMapMenus(); buttons.Clear(); Invalidate(); }, false, false);

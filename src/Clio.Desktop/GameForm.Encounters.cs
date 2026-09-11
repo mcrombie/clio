@@ -179,9 +179,13 @@ namespace Clio.Desktop
             if (enabled) Button(g, label, bounds.X, bounds.Y, bounds.Width, bounds.Height, action, active, false);
             else
             {
-                Art.Fill(g, Color.FromArgb(24, 34, 37), bounds.X, bounds.Y, bounds.Width, bounds.Height);
-                using (Pen pen = new Pen(Border)) g.DrawRectangle(pen, bounds.X, bounds.Y, bounds.Width, bounds.Height);
-                Typography.Line(g, label, new RectangleF(bounds.X + 7, bounds.Y, bounds.Width - 14, bounds.Height), 14, Color.FromArgb(102, 114, 111), TypeRole.Action, true, StringAlignment.Center);
+                if (Art.PaperMode) MapPaper.Surface(g, bounds, false);
+                else
+                {
+                    Art.Fill(g, Color.FromArgb(24, 34, 37), bounds.X, bounds.Y, bounds.Width, bounds.Height);
+                    using (Pen pen = new Pen(Border)) g.DrawRectangle(pen, bounds.X, bounds.Y, bounds.Width, bounds.Height);
+                }
+                Typography.Line(g, label, new RectangleF(bounds.X + 7, bounds.Y, bounds.Width - 14, bounds.Height), 14, Art.PaperMode ? MapPaper.DisabledInk : Color.FromArgb(102, 114, 111), TypeRole.Action, true, StringAlignment.Center);
             }
         }
 
@@ -195,7 +199,7 @@ namespace Clio.Desktop
             Band actor = game.Bands.First(b => b.Id == encounterActorId);
             Beast animal = encounterTargetKind == UnitKind.Animal ? game.Beasts.First(b => b.Id == encounterTargetId) : null;
             Band band = encounterTargetKind == UnitKind.Band ? game.Bands.First(b => b.Id == encounterTargetId) : null;
-            using (Brush shade = new SolidBrush(Color.FromArgb(195, 6, 13, 17))) g.FillRectangle(shade, 0, 0, 1600, 960);
+            using (Brush shade = new SolidBrush(Art.PaperMode ? Color.FromArgb(112, MapPaper.MutedInk) : Color.FromArgb(195, 6, 13, 17))) g.FillRectangle(shade, 0, 0, 1600, 960);
             buttons.Clear();
             Art.Panel(g, new RectangleF(365, 163, 870, 667), Color.FromArgb(25, 38, 41), true);
             Typography.Label(g, "Where the paths cross", new RectangleF(409, 184, 782, 26), 13, Art.Gold, 1.2f, StringAlignment.Center);
@@ -203,7 +207,7 @@ namespace Clio.Desktop
             if (animal != null) IdentityArt.DrawAnimal(g, animal.Kind, new RectangleF(760, 239, 80, 49), Art.Gold, animal.Domestic);
             else IdentityArt.DrawEmblem(g, game.TribeOf(band.Id), new RectangleF(775, 239, 50, 50), false);
             Typography.Line(g, animal == null ? band.Name : AnimalUnitName(animal), new RectangleF(412, 297, 776, 51), 38, Art.Ink, TypeRole.Display, true, StringAlignment.Center);
-            Typography.Label(g, UnitTemperament(target) + "  /  " + target.Count + (animal == null ? " people" : target.Count == 1 ? " animal" : " animals"), new RectangleF(419, 352, 762, 26), 12, target.Hostile ? Color.FromArgb(218, 142, 116) : Art.Gold, .7f, StringAlignment.Center);
+            Typography.Label(g, UnitTemperament(target) + "  /  " + target.Count + (animal == null ? " people" : target.Count == 1 ? " animal" : " animals"), new RectangleF(419, 352, 762, 26), 12, target.Hostile ? Art.PaperMode ? MapPaper.Warning : Color.FromArgb(218, 142, 116) : Art.Gold, .7f, StringAlignment.Center);
             Typography.Draw(g, animal == null ? target.Description : AnimalUnitDescription(animal, target), new RectangleF(418, 396, 764, 54), 18, Art.Muted, TypeRole.Body);
             Art.Panel(g, new RectangleF(411, 466, 372, 75), Panel, false);
             Art.Panel(g, new RectangleF(806, 466, 382, 75), Panel, false);
@@ -237,7 +241,7 @@ namespace Clio.Desktop
             UnitProfile unit = EncounterRules.Band(game, band);
             InspectorPair(g, "Fighting strength", unit.Strength.ToString("0"), 557);
             InspectorPair(g, "Condition", unit.CurrentHealth.ToString("0") + " / " + unit.MaxHealth.ToString("0"), 587);
-            Meter(g, 1295, 619, 267, unit.MaxHealth <= 0 ? 0 : unit.CurrentHealth / (double)unit.MaxHealth, unit.Hostile ? Color.FromArgb(207, 125, 100) : LedgerGreen);
+            Meter(g, 1295, 619, 267, unit.MaxHealth <= 0 ? 0 : unit.CurrentHealth / (double)unit.MaxHealth, unit.Hostile ? Art.PaperMode ? MapPaper.Warning : Color.FromArgb(207, 125, 100) : LedgerGreen);
             Typography.Line(g, game.Languages[band.LanguageId].Name + " · " + (band.Cohesion * 100).ToString("0") + "% cohesion", new RectangleF(1295, 634, 267, 27), 17, Art.Muted, TypeRole.Annotation, true);
             Typography.Draw(g, game.CanControlBand(band.Id) ? "Your household. Wounds weaken its fighting strength and recover over time." : unit.Hostile ? "A hostile people. The feud can bring further attacks; strength and shelter matter." : "An independent people. Attacking will begin a feud.", new RectangleF(1295, 673, 267, 57), 16, unit.Hostile ? Art.Gold : Art.Muted, TypeRole.Annotation);
             if (game.CanControlBand(band.Id)) Button(g, "Open household ledger", 1295, 740, 267, 36, delegate { ArmMapCommandBand(band.Id); OpenEconomy(0); }, false, false);
@@ -272,7 +276,7 @@ namespace Clio.Desktop
             IdentityArt.DrawAnimal(g, animal.Kind, new RectangleF(1295, 336, 43, 33), Art.Ink, animal.Domestic);
             FittedTitle(g, AnimalUnitName(animal), new RectangleF(1349, 328, 213, 63), 27, Art.Ink);
             Typography.Line(g, "Unit " + animal.Id + " · " + animal.Count + (animal.Count == 1 ? " animal · " : " animals · ") + (animal.Domestic ? "domestic" : "wild"), new RectangleF(1295, 395, 267, 25), 16, Art.Muted, TypeRole.Annotation, true);
-            Typography.Line(g, UnitTemperament(unit), new RectangleF(1293, 427, 269, 31), 22, unit.Hostile ? Color.FromArgb(221, 145, 113) : Art.Gold, TypeRole.Heading, true);
+            Typography.Line(g, UnitTemperament(unit), new RectangleF(1293, 427, 269, 31), 22, unit.Hostile ? Art.PaperMode ? MapPaper.Warning : Color.FromArgb(221, 145, 113) : Art.Gold, TypeRole.Heading, true);
             InspectorPair(g, "Condition", unit.CurrentHealth.ToString("0") + " / " + unit.MaxHealth.ToString("0"), 467);
             Meter(g, 1295, 499, 267, unit.MaxHealth <= 0 ? 0 : unit.CurrentHealth / (double)unit.MaxHealth, LedgerGreen);
             InspectorPair(g, "Fighting strength", unit.Strength.ToString("0"), 514);

@@ -1,6 +1,12 @@
 # The map-edge interface
 
-`horizon-33` lets the campaign map fill the viewport, with compact controls around its edges. It builds on `quiet-30`: symbols summarize the situation, hover explains them, and clicking opens the relevant detail. This is a presentation pass, with the existing simulation, gameplay modes and saved commands retained.
+`vellum-34` gives the campaign map a hand-drawn atlas-on-paper treatment while retaining the compact edge layout introduced in `horizon-33`. Symbols summarize the situation, hover explains them, and clicking opens the relevant detail. This is a presentation pass, with the existing simulation, gameplay modes and saved commands retained.
+
+## A map drawn on paper
+
+Unexplored land is warm parchment, with faint paper grain rather than a blue fog field. Known geography is drawn with sparse tree groups, hatched mountain slopes, contour hills, reeds and grass strokes. Inked coasts, watercourses and ripples sit over pale watercolor washes; the paper stays visible between marks. The earlier bright-green, shaded terrain and glossy water treatment is historical, not the current campaign style.
+
+Units, map notes and edge controls use paper counters and restrained ink borders. Muted ochre, blue-gray and warning accents distinguish selection, resources and danger without covering the geography. Paper adviser portraits belong to the same visual language. These marks do not change discovery, terrain movement costs, river crossings or mountain passability.
 
 ## Essential supplies on the map; complete records on other pages
 
@@ -52,7 +58,7 @@ An adviser cue takes precedence over a routine event cue; both use the same map-
 
 ## Delivery status
 
-Validation remains paused for this `horizon-33` design iteration, as requested. No new regression tests, screenshot renders or playthrough checks are being run for this layout pass. Earlier validation records describe their own builds and are not verification of this interface pass.
+`vellum-34` compiled successfully using `build.ps1` without optional checks. Regression tests, screenshot renders and playthrough checks remain paused, as requested. Earlier validation records and screenshots describe their own builds, not verification of this paper-map pass.
 
 ## Paper adviser portraits
 

@@ -304,7 +304,7 @@ namespace Clio.Desktop
         private void DrawGatheringChoice(Graphics g)
         {
             if (!gatheringChoice) return;
-            using (Brush shade = new SolidBrush(Color.FromArgb(205, 6, 13, 17))) g.FillRectangle(shade, 0, 0, 1600, 960);
+            using (Brush shade = new SolidBrush(Art.PaperMode ? Color.FromArgb(110, MapPaper.MutedInk) : Color.FromArgb(205, 6, 13, 17))) g.FillRectangle(shade, 0, 0, 1600, 960);
             buttons.Clear(); Art.Panel(g, new RectangleF(354, 182, 892, 620), Color.FromArgb(25, 36, 39), true);
             string title = gatheringChoiceKind == "site" ? "A place to meet" : gatheringChoiceKind == "invite" ? "Send an invitation" : gatheringChoiceKind == "aid" ? "Aid from your own stores" : "A promise to return";
             Typography.Label(g, "Between independent peoples", new RectangleF(387, 205, 818, 25), 12, Art.Gold);

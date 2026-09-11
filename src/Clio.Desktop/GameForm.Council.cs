@@ -135,7 +135,7 @@ namespace Clio.Desktop
         private void DrawCouncil(Graphics g)
         {
             if (!adviserOpen) return;
-            using (Brush shade = new SolidBrush(Color.FromArgb(205, 6, 13, 17))) g.FillRectangle(shade, 0, 0, 1600, 960);
+            using (Brush shade = new SolidBrush(Art.PaperMode ? Color.FromArgb(110, MapPaper.MutedInk) : Color.FromArgb(205, 6, 13, 17))) g.FillRectangle(shade, 0, 0, 1600, 960);
             buttons.Clear();
             Art.Panel(g, new RectangleF(132, 94, 1336, 780), Color.FromArgb(25, 36, 39), true);
             Art.Icon(g, "history", 164, 117, 33, Art.Gold);
@@ -171,7 +171,8 @@ namespace Clio.Desktop
             {
                 Advisory report = filtered[adviserPage * 4 + i];
                 RectangleF row = new RectangleF(162, 331 + i * 89, 264, 80);
-                Art.Panel(g, row, !councilMeet && report.Key == adviserKey ? Color.FromArgb(43, 51, 46) : Color.FromArgb(21, 31, 35), false);
+                if (Art.PaperMode) MapPaper.Surface(g, row, false, !councilMeet && report.Key == adviserKey);
+                else Art.Panel(g, row, !councilMeet && report.Key == adviserKey ? Color.FromArgb(43, 51, 46) : Color.FromArgb(21, 31, 35), false);
                 Typography.Label(g, AdviserContext(report) + (AdviserUnread(report) ? " *" : ""), new RectangleF(row.X + 12, row.Y + 7, row.Width - 24, 19), 11, AdviserInk(report), .3f);
                 Typography.Draw(g, report.Title, new RectangleF(row.X + 12, row.Y + 28, row.Width - 24, 48), 18, Art.Ink, TypeRole.Heading);
                 string key = report.Key; buttons.Add(new UiButton(row, delegate { SelectAdviser(key); }));
@@ -192,7 +193,8 @@ namespace Clio.Desktop
         {
             RectangleF box = new RectangleF(455 + index * 248, 219, 237, 102);
             bool chosen = councilVoice == profile.Id;
-            Art.Panel(g, box, chosen ? Color.FromArgb(44, 52, 46) : Color.FromArgb(21, 31, 34), false);
+            if (Art.PaperMode) MapPaper.Surface(g, box, false, chosen);
+            else Art.Panel(g, box, chosen ? Color.FromArgb(44, 52, 46) : Color.FromArgb(21, 31, 34), false);
             AdviserPortraits.Draw(g, new RectangleF(box.X + 8, box.Y + 18, 64, 64), profile.Id, chosen ? Art.Gold : Art.Muted);
             Typography.Draw(g, profile.Name, new RectangleF(box.X + 83, box.Y + 8, 143, 48), 21, chosen ? Art.Gold : Art.Ink, TypeRole.Heading);
             Typography.Draw(g, profile.Title, new RectangleF(box.X + 84, box.Y + 60, 142, 34), 14, Art.Muted, TypeRole.Annotation);

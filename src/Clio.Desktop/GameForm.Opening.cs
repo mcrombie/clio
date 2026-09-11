@@ -46,7 +46,7 @@ namespace Clio.Desktop
         private void DrawOpeningAnnouncement(Graphics g)
         {
             if (!openingAnnouncement || game == null || game.IsOver) return;
-            using (Brush veil = new SolidBrush(Color.FromArgb(210, 5, 12, 16))) g.FillRectangle(veil, 0, 0, 1600, 960);
+            using (Brush veil = new SolidBrush(Art.PaperMode ? Color.FromArgb(110, MapPaper.MutedInk) : Color.FromArgb(210, 5, 12, 16))) g.FillRectangle(veil, 0, 0, 1600, 960);
             buttons.Clear();
             RectangleF folio = new RectangleF(216, 94, 1168, 774);
             Color paper = Color.FromArgb(224, 213, 185), ink = Color.FromArgb(42, 49, 44), secondary = Color.FromArgb(80, 82, 66);
