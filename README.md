@@ -4,11 +4,13 @@
 
 Clio is an experimental Windows desktop game written in C#. Explore a generated hex world, maintain food and salt supplies, gather wood for fires and camps, form new bands, and watch related peoples separate into independent polities. Languages, place names, encounters and decisions become part of the recorded story.
 
-The current source corresponds to **battles-32**. It uses a native Windows Forms interface and an engine-independent simulation. A separate Unity presentation starter is included for future development.
+The current source corresponds to **bestiary-35**: a hand-drawn paper campaign map with compact edge controls, ink animal sketches and paper adviser portraits. It uses a native Windows Forms interface and an engine-independent simulation. A separate Unity presentation starter is included for future development.
 
 ## Play on Windows
 
 Clone this repository, then double-click **Launch Clio.cmd**. On the first launch, it builds the game using the Windows .NET Framework compiler and opens it. Later launches follow the current completed build.
+
+After pulling source updates into an existing clone, run **build.ps1** before launching to compile the new version. The launcher builds automatically only when it cannot find a valid completed build.
 
 The native build requires Windows and the .NET Framework C# compiler at `%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe`. It does not require a browser, account, server or Unity installation. The .NET SDK is not needed for this build path.
 
@@ -19,9 +21,11 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\build.ps1
 & ".\Launch Clio.cmd"
 ```
 
-The executable and simulation library are written to `build/battles-32/`. Keep them together. Build output and saved games are not included in the repository.
+The executable and simulation library are written to `build/bestiary-35/`. Keep them together. Build output and saved games are not included in the repository.
 
-Clio opens fullscreen. **F11** or **Alt+Enter** returns to a window. Save before closing an older build, then launch the updated version and load the story. Compatible earlier stories replay their original history before receiving recorded rules upgrades. Automation always loads stopped. Tactical battle stories use save format V14 and can restore an active battle. Older stories receive recorded rules upgrades after replay, including releasing any formerly domestic deer alive under the livestock rules.
+Clio opens fullscreen. **F11** or **Alt+Enter** returns to a window; fullscreen is also available in the upper-left campaign menu. Save before closing an older build, then launch the updated version and load the story. Automation always loads stopped.
+
+New saves use the named **CLIO-STORY-15** header. Earlier V1–V14 stories retain their original readers and command replay, including restoration of an active tactical battle. Compatible older stories receive recorded rules upgrades after replay, including releasing any formerly domestic deer alive under the livestock rules. V15 saves require the updated application.
 
 ## Three ways to play
 
@@ -35,9 +39,11 @@ Choose a mode from the bottom dock. Automatic starts immediately; **P** or **Tak
 
 ## Reading the interface
 
-The same compact status strip appears on every page: people and population change, food, salt, wood, tribal contact, known hostile bands and ready bands. Hover any symbol for its meaning and click for the full account. Resource totals cover the tribe; warning marks identify individual-band shortages even when total reserves look healthy.
+The campaign map fills the window behind compact edge controls. People, food, salt and wood sit at the top center; page navigation, advisers and events sit at the upper right. Orders and turn controls occupy opposite lower corners, while the upper-left menu holds Save, Load, New story and fullscreen. Other pages retain the fuller tribal status strip. Hover a symbol for its meaning and click for its account. Resource totals cover the tribe; warning marks identify individual-band shortages even when total reserves look healthy.
 
-The map starts with its landscape and compact controls. Scroll over the map to zoom; the closest view is now twice as magnified as the previous limit, while the starting view is unchanged. Click the selected band's name to open its details; map selections show a short card with **More details** available. A small symbol toolbar helps find food, salt and exploration opportunities. Economy opens to six summary cards, with complete ledgers behind them. Advisers and routine events share one compact cue at a time, retaining expanded explanations and the existing frequency setting. [Interface guide](docs/INTERFACE.md).
+Warm parchment remains visible in unexplored space and between the sparse pen-drawn trees, hatched mountains and inked watercourses. Muted washes describe terrain; paper counters, notes and controls use restrained accents. Animal groups have naturalist ink sketches, food markers use leafy berry sprigs, salt uses cubic crystals beside water strokes, and exploration uses a compass rose. The markers sit directly on the chart, with existing crowding limits and hover explanations.
+
+Scroll over the map to zoom. Click the selected band's name to open its details; map selections show a short card with **More details** available. Economy opens to six summary cards, with complete ledgers behind them. Advisers appear as pencil-and-ink portraits on paper. Their advice and routine events share one compact cue at a time, retaining expanded explanations, competing views and the existing frequency setting. [Interface guide](docs/INTERFACE.md).
 
 ## The early game
 
@@ -67,7 +73,7 @@ Start with [Regions and battles](docs/BATTLES.md), [Gameplay modes](docs/STORY_M
 
 ## Development status
 
-This is a working design prototype, with balance and interface behavior still changing. The latest battle iteration was compiled without new tests, rendering or playthrough verification, at the author's request. Existing checks remain available through `build.ps1 -Test`; optional native rendering is available through `build.ps1 -Render`. These switches are opt-in. See [Validation status](docs/VALIDATION.md).
+This is a working design prototype, with balance and interface behavior still changing. **bestiary-35 compiled successfully in the primary local project.** No new tests, screenshot renders or playthrough checks accompanied these design changes, and compilation was not repeated in this GitHub checkout. Existing checks remain available through `build.ps1 -Test`; optional native rendering is available through `build.ps1 -Render`. These switches are opt-in. See [Validation status](docs/VALIDATION.md).
 
 The Unity files are a starter, not the desktop game or a finished Unity release. Follow [Unity setup](unity/README.md) to explore that path. Full 3D production, expanded institutions, agriculture and later eras remain future work.
 

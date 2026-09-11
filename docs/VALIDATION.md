@@ -1,6 +1,10 @@
 # Validation status
 
-The latest design iterations, including wood, story decisions and the three-mode selector, were published without new verification runs at the project owner's request. This repository import also adds no test or playthrough claim.
+**Current source: bestiary-35.** The primary local project compiled this release successfully using the installed Windows .NET Framework compiler. Compilation was not repeated in this GitHub checkout during integration.
+
+The release includes the compact full-window campaign layout, parchment terrain and watercourses, paper adviser portraits, ink animal sketches and drawn resource/exploration markers. It also carries the settings refactor and named V15 story header, with older V1–V14 readers and tactical command replay retained. These descriptions identify the implemented changes; compilation does not establish their gameplay, visual or save-compatibility correctness.
+
+No new regression tests, screenshot renders or playthrough checks were run for these design changes or this repository integration, at the project owner's request. Earlier wood, story-decision and gameplay-mode iterations likewise do not acquire a new verification claim through this update.
 
 The existing simulation checks are included in `tests/`. To compile and run them on Windows, use:
 
