@@ -48,30 +48,60 @@ namespace Clio.Desktop
         {
             if (bounds.Width <= 0 || bounds.Height <= 0) return;
             Bitmap portrait = Portrait(id);
+            float side = Math.Min(bounds.Width, bounds.Height);
+            RectangleF paper = new RectangleF(bounds.X + (bounds.Width - side) / 2,
+                bounds.Y + (bounds.Height - side) / 2, side, side);
+            float inset = Math.Max(1, side * .035f);
+            RectangleF drawing = RectangleF.Inflate(paper, -inset, -inset);
             GraphicsState state = g.Save();
             try
             {
-                using (Brush shadow = new SolidBrush(Color.FromArgb(105, 0, 0, 0))) g.FillEllipse(shadow, bounds.X + 3, bounds.Y + 4, bounds.Width, bounds.Height);
-                using (GraphicsPath circle = new GraphicsPath())
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                using (GraphicsPath sheet = PaperOutline(paper))
                 {
-                    circle.AddEllipse(bounds); g.SetClip(circle, CombineMode.Intersect);
-                    using (Brush backing = new SolidBrush(Color.FromArgb(13, 25, 28))) g.FillRectangle(backing, bounds);
+                    // A small unpolished sheet, not a badge. The image keeps its
+                    // square composition and its own drawn-paper background.
+                    using (GraphicsPath shade = (GraphicsPath)sheet.Clone())
+                    using (Matrix offset = new Matrix())
+                    using (Brush shadow = new SolidBrush(Color.FromArgb(48, 0, 0, 0)))
+                    {
+                        offset.Translate(Math.Min(2, side * .025f), Math.Min(3, side * .04f));
+                        shade.Transform(offset); g.FillPath(shadow, shade);
+                    }
+                    using (Brush backing = new SolidBrush(Color.FromArgb(243, 238, 223))) g.FillPath(backing, sheet);
                     if (portrait != null)
                     {
                         g.InterpolationMode = InterpolationMode.HighQualityBicubic;
-                        g.DrawImage(portrait, bounds);
+                        g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+                        g.DrawImage(portrait, drawing);
                     }
                     else
                     {
                         string name = CouncilPerspectives.Profile(id).Name;
-                        Typography.Line(g, name.Substring(0, 1), new RectangleF(bounds.X, bounds.Y + bounds.Height * .19f, bounds.Width, bounds.Height * .62f), bounds.Height * .45f,
-                            ink, TypeRole.Display, true, StringAlignment.Center);
+                        Typography.Line(g, name.Substring(0, 1), new RectangleF(paper.X, paper.Y + side * .19f, side, side * .62f), side * .45f,
+                            Color.FromArgb(77, 68, 54), TypeRole.Display, true, StringAlignment.Center);
                     }
+                    using (Pen edge = new Pen(Color.FromArgb(125, 84, 73, 57), .8f)) g.DrawPath(edge, sheet);
                 }
             }
             finally { g.Restore(state); }
-            using (Pen rim = new Pen(Color.FromArgb(220, ink), 1.3f)) g.DrawEllipse(rim, bounds);
-            using (Pen rim = new Pen(Color.FromArgb(65, ink), .8f)) g.DrawEllipse(rim, bounds.X - 3, bounds.Y - 3, bounds.Width + 6, bounds.Height + 6);
+        }
+
+        private static GraphicsPath PaperOutline(RectangleF paper)
+        {
+            float cut = Math.Max(1, Math.Min(4, paper.Width * .025f));
+            GraphicsPath path = new GraphicsPath();
+            path.AddPolygon(new[] {
+                new PointF(paper.Left + cut, paper.Top),
+                new PointF(paper.Right - cut * .65f, paper.Top),
+                new PointF(paper.Right, paper.Top + cut * .8f),
+                new PointF(paper.Right, paper.Bottom - cut),
+                new PointF(paper.Right - cut * .85f, paper.Bottom),
+                new PointF(paper.Left + cut * .65f, paper.Bottom),
+                new PointF(paper.Left, paper.Bottom - cut * .75f),
+                new PointF(paper.Left, paper.Top + cut)
+            });
+            return path;
         }
     }
 }

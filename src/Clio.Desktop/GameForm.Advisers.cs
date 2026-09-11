@@ -162,7 +162,7 @@ namespace Clio.Desktop
             Art.Panel(g, box, Color.FromArgb(26, 37, 39), false);
             Art.Line(g, ink, 2, box.X, box.Y + 10, box.X, box.Bottom - 10);
             AdviserPortraits.Draw(g, new RectangleF(box.X + 12, box.Y + 13, 44, 44), voice, ink);
-            Typography.Line(g, profile.Name, new RectangleF(box.X + 69, box.Y + 11, box.Width - 108, 27), 19, ink, TypeRole.Heading, true);
+            Typography.Line(g, profile.Name, new RectangleF(box.X + 69, box.Y + 11, box.Width - 116, 27), 19, ink, TypeRole.Heading, true);
             string sentence = AdviserCueSentence(report);
             RectangleF summary = new RectangleF(box.X + 69, box.Y + 42, box.Width - 83, 51);
             Typography.Draw(g, sentence, summary, AdviserReadingSize(g, sentence, summary, 17, 15, TypeRole.Body), Art.Ink, TypeRole.Body);
@@ -171,7 +171,7 @@ namespace Clio.Desktop
             MapTip(profile.Name + ": " + report.Title + "\n" + report.Summary + "\nOpen Details for the full explanation and other advisers' views.");
             Button(g, "Details >", box.Right - 110, box.Y + 100, 96, 25, delegate { OpenAdvisers(key); }, false, false);
             MapTip("Read the full advice, its tradeoffs and the other advisers' views. Opening Details pauses autoplay.");
-            Button(g, "\u00d7", box.Right - 31, box.Y + 9, 22, 22, delegate { AcknowledgeDisplayedAdviser(report, occurrence); }, false, false);
+            Button(g, "\u00d7", box.Right - 36, box.Y + 9, 28, 28, delegate { AcknowledgeDisplayedAdviser(report, occurrence); }, false, false);
             MapTip("Dismiss this advice. It remains available in Advisers.");
         }
 

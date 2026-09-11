@@ -10,10 +10,14 @@ namespace Clio.Desktop
         // Explicit inspection has priority over automatic notifications. Reports
         // stay unread and can always be opened from the HUD or History.
         private bool NotificationInspectorOpen
-        { get { return page == 0 && (mapSelectionOpen || unitStackOpen || bandDetailsOpen); } }
+        { get { return page == 0 && (mapSelectionOpen || unitStackOpen || bandDetailsOpen || CampaignSystemMenuOpen); } }
 
         private RectangleF NotificationCueBounds(float height)
-        { return new RectangleF(1220, 222, 342, height); }
+        {
+            // The campaign map reaches the window edges. Keep its one transient
+            // cue beneath the navigation/counters, without moving ledger cues.
+            return page == 0 ? new RectangleF(1214, 118, 372, height) : new RectangleF(1220, 222, 342, height);
+        }
 
         private bool RoutineNoticeVisible
         {
@@ -70,9 +74,9 @@ namespace Clio.Desktop
             }
             buttons.Add(new UiButton(box, delegate { OpenNotice(notice, autoplay); }));
             MapTip(Timeline.Label(game, notice.Turn) + ": " + Timeline.DisplayText(game, notice.Title) + "\n" + Timeline.DisplayText(game, notice.Impact) + "\nRead opens the full account.");
-            Button(g, "Read", box.Right - 94, box.Y + 16, 55, 27, delegate { OpenNotice(notice, autoplay); }, false, false);
+            Button(g, "Read", box.Right - 102, box.Y + 15, 59, 28, delegate { OpenNotice(notice, autoplay); }, false, false);
             MapTip("Read what happened and its consequences. This pauses autoplay.");
-            Button(g, "\u00d7", box.Right - 30, box.Y + 17, 22, 25, delegate { DismissNotice(false); }, false, false);
+            Button(g, "\u00d7", box.Right - 36, box.Y + 15, 28, 28, delegate { DismissNotice(false); }, false, false);
             MapTip("Dismiss this notification. The account remains in History.");
         }
 

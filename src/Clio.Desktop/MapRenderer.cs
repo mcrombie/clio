@@ -28,7 +28,7 @@ namespace Clio.Desktop
         public bool IsNavigating;
         public int Layer;
         public int OrderPreviewCell = -1;
-        public readonly RectangleF Bounds = new RectangleF(16, 158, 1568, 690);
+        public RectangleF Bounds = new RectangleF(0, 0, 1600, 960);
         public readonly List<ProjectedCell> Visible = new List<ProjectedCell>();
         private readonly List<Tuple<RectangleF, int>> bandTargets = new List<Tuple<RectangleF, int>>();
         private Vec3 right, up, forward;
@@ -66,6 +66,15 @@ namespace Clio.Desktop
         }
         private bool Known(Game game, int id) { return !Fog || game.Explored.Contains(id); }
         public void InvalidateTerrain() { lastTerrainKey = null; }
+        public void SetBounds(RectangleF bounds)
+        {
+            if (bounds.Width < 1 || bounds.Height < 1 || Bounds == bounds) return;
+            Bounds = bounds;
+            if (cachedTerrain != null) { cachedTerrain.Dispose(); cachedTerrain = null; }
+            if (backdrop != null) { backdrop.Dispose(); backdrop = null; }
+            if (fogImage != null) { fogImage.Dispose(); fogImage = null; }
+            backdropPixels = null; lastTerrainKey = null;
+        }
         private void BuildGeometry(Game game)
         {
             if (cachedWorld != game.World)
@@ -78,7 +87,9 @@ namespace Clio.Desktop
                     owners.Add(cell.Id);
                 }
             }
-            radius = (float)(Bounds.Height * .465 * Zoom);
+            // Extra screen area shows more land without silently changing the
+            // player's zoom or stretching the map on wider monitors.
+            radius = (float)(690 * .465 * Zoom);
             forward = new Vec3(Math.Sin(Longitude) * Math.Cos(Latitude), Math.Sin(Latitude), Math.Cos(Longitude) * Math.Cos(Latitude));
             right = new Vec3(Math.Cos(Longitude), 0, -Math.Sin(Longitude)); up = Vec3.Cross(forward, right);
             Visible.Clear(); projected.Clear();
@@ -107,7 +118,6 @@ namespace Clio.Desktop
             }
             g.DrawImage(cachedTerrain, Bounds);
             DrawSelection(g, game, selected); DrawOrderPreview(g, game); DrawReunionRoute(g, game); DrawMapInterests(g, game); DrawSaltSources(g, game); DrawLife(g, game, selected); DrawLabels(g, game); DrawCompass(g);
-            using (Pen pen = new Pen(Color.FromArgb(125, 79, 99, 99), 1)) g.DrawRectangle(pen, Bounds.X + .5f, Bounds.Y + .5f, Bounds.Width - 1, Bounds.Height - 1);
             g.Restore(state);
         }
         private void DrawLandscape(Graphics g, Game game)
@@ -360,12 +370,10 @@ namespace Clio.Desktop
         }
         private void DrawCompass(Graphics g)
         {
-            float x = Bounds.Right - 48, y = Bounds.Top + 91;
-            using (Pen pen = new Pen(Color.FromArgb(110, Art.Gold), .8f)) { g.DrawEllipse(pen, x - 22, y - 22, 44, 44); g.DrawEllipse(pen, x - 18, y - 18, 36, 36); }
-            using (Brush light = new SolidBrush(Art.Gold)) g.FillPolygon(light, new[] { new PointF(x, y - 31), new PointF(x - 4, y), new PointF(x, y + 6) });
-            using (Brush shade = new SolidBrush(Color.FromArgb(123, 151, 151))) g.FillPolygon(shade, new[] { new PointF(x, y - 31), new PointF(x + 4, y), new PointF(x, y + 6) });
-            Art.Line(g, Color.FromArgb(120, Art.Gold), .8f, x - 28, y, x + 28, y); Art.Line(g, Color.FromArgb(120, Art.Gold), .8f, x, y, x, y + 27);
-            Art.CenterText(g, Math.Cos(Latitude) >= 0 ? "N" : "S", new RectangleF(x - 14, y - 55, 28, 20), 13, Art.Gold, true);
+            const float x = 1158, y = 40;
+            using (Pen pen = new Pen(Color.FromArgb(115, Art.Gold), .8f)) g.DrawEllipse(pen, x - 12, y - 12, 24, 24);
+            using (Brush light = new SolidBrush(Art.Gold)) g.FillPolygon(light, new[] { new PointF(x, y - 13), new PointF(x - 3, y + 3), new PointF(x + 3, y + 3) });
+            Art.CenterText(g, Math.Cos(Latitude) >= 0 ? "N" : "S", new RectangleF(x - 9, y - 32, 18, 17), 11, Art.Gold, true);
         }
         private static PointF Lerp(PointF a, PointF b, float t) { return new PointF(a.X + (b.X - a.X) * t, a.Y + (b.Y - a.Y) * t); }
         public static Color TerrainColor(Terrain terrain)

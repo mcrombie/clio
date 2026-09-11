@@ -45,6 +45,8 @@ namespace Clio.Desktop
         private int culturePage;
         private bool languagePreview = true;
         private PointF hoverPoint = new PointF(-1, -1);
+        private RectangleF campaignSurface = new RectangleF(0, 0, 1600, 960);
+        private RectangleF InputViewport { get { return page == 0 && !BattleOverlayActive ? ClientRectangle : GameViewport; } }
         private string presentationCaption = "";
         private static readonly Color Background = Color.FromArgb(13, 22, 27), Panel = Color.FromArgb(24, 34, 38), Border = Color.FromArgb(57, 67, 66);
         public GameForm() : this(null) { }
@@ -66,13 +68,14 @@ namespace Clio.Desktop
             autoplayTimer.Tick += delegate { AutoplayStep(); };
             mapHoverTimer.Tick += delegate { RevealMapHover(); };
             noticeTimer.Tick += delegate { if (activeNotice != null && !noticeModal && DateTime.UtcNow >= noticeUntil) { activeNotice = null; noticeTimer.Stop(); Invalidate(); } };
+            campaignFeedbackTimer.Tick += delegate { campaignFeedbackTimer.Stop(); campaignFeedbackVisible = false; Invalidate(); };
             unitAnimationTimer.Tick += delegate { if (page == 0 && map.Animating && !BlockingSheet) Invalidate(); };
             unitAnimationTimer.Start();
             Shown += delegate { ApplyStartupWindowMode(); ShowInitialGuidance(); };
             Resize += delegate { CancelWindowGesture(); Invalidate(); };
         }
         protected override void Dispose(bool disposing)
-        { if (disposing) { autoplay = false; autoplayTimer.Dispose(); settleCamera.Dispose(); noticeTimer.Dispose(); unitAnimationTimer.Dispose(); mapHoverTimer.Dispose(); DisposeBattleView(); map.Dispose(); } base.Dispose(disposing); }
+        { if (disposing) { autoplay = false; autoplayTimer.Dispose(); settleCamera.Dispose(); noticeTimer.Dispose(); campaignFeedbackTimer.Dispose(); unitAnimationTimer.Dispose(); mapHoverTimer.Dispose(); DisposeBattleView(); map.Dispose(); } base.Dispose(disposing); }
         private PointF Virtual(Point p)
         {
             RectangleF viewport = GameViewport;
@@ -88,23 +91,39 @@ namespace Clio.Desktop
             GraphicsState frame = e.Graphics.Save();
             try
             {
-                e.Graphics.SetClip(viewport, CombineMode.Intersect);
+                bool campaign = page == 0 && !BattleOverlayActive;
+                float scale = viewport.Width / 1600f;
+                campaignSurface = campaign ? new RectangleF(-viewport.X / scale, -viewport.Y / scale, ClientSize.Width / scale, ClientSize.Height / scale) : new RectangleF(0, 0, 1600, 960);
+                e.Graphics.SetClip(campaign ? (RectangleF)ClientRectangle : viewport, CombineMode.Intersect);
                 e.Graphics.TranslateTransform(viewport.X, viewport.Y);
-                float scale = viewport.Width / 1600f; e.Graphics.ScaleTransform(scale, scale);
+                e.Graphics.ScaleTransform(scale, scale);
                 Draw(e.Graphics);
             }
             finally { e.Graphics.Restore(frame); }
         }
         public void Render(string path)
         {
+            RectangleF previousSurface = campaignSurface;
+            campaignSurface = new RectangleF(0, 0, 1600, 960);
+            try
+            {
             using (Bitmap image = new Bitmap(1600, 960)) using (Graphics g = Graphics.FromImage(image))
             { Draw(g); image.Save(path, System.Drawing.Imaging.ImageFormat.Png); }
+            }
+            finally { campaignSurface = previousSurface; }
         }
         private void Draw(Graphics g)
         {
             g.SmoothingMode = SmoothingMode.AntiAlias; g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
             g.Clear(Background); buttons.Clear();
             if (BattleOverlayActive) { DrawBattle(g); return; }
+            if (page == 0)
+            {
+                DrawWorld(g);
+                DrawCampaignHeader(g);
+            }
+            else
+            {
             using (LinearGradientBrush sky = new LinearGradientBrush(new RectangleF(0, 0, 1600, 95), Color.FromArgb(29, 39, 42), Background, 90))
                 g.FillRectangle(sky, 0, 0, 1600, 94);
             Art.Line(g, Border, 1, 18, 92, 1582, 92);
@@ -125,12 +144,12 @@ namespace Clio.Desktop
             Button(g, "Load", 1330, 29, 87, 36, LoadStory, false, false);
             Button(g, "New story", 1427, 29, 145, 36, NewStory, false, false);
             DrawCompactStatus(g);
-            if (page == 0) DrawWorld(g);
-            else if (page == 1) DrawEconomy(g);
+            if (page == 1) DrawEconomy(g);
             else if (page == 2) DrawCulture(g);
             else if (page == 3) DrawUnits(g);
             else if (page == 5) DrawDiplomacy(g);
             else DrawChronicle(g);
+            }
             if (page == 0)
             {
                 DrawMapDock(g);
@@ -138,13 +157,17 @@ namespace Clio.Desktop
                 if (!BlockingSheet && mapSelectionOpen) DrawMapSelectionCard(g);
             }
             else DrawCommandDock(g);
-            Typography.Line(g, Timeline.DisplayText(game, status), new RectangleF(29, 930, 1150, 25), 14, Art.Muted, TypeRole.Body);
-            DrawBuildIdentity(g);
-            Button(g, "F11", 1521, 930, 63, 26, ToggleFullscreen, fullscreen, false);
-            MapTip(fullscreen ? "Return to a window [F11 / Alt+Enter]." : "Enter fullscreen [F11 / Alt+Enter].");
+            if (page == 0) DrawCampaignFeedback(g);
+            else
+            {
+                Typography.Line(g, Timeline.DisplayText(game, status), new RectangleF(29, 930, 1150, 25), 14, Art.Muted, TypeRole.Body);
+                DrawBuildIdentity(g);
+                Button(g, "F11", 1521, 930, 63, 26, ToggleFullscreen, fullscreen, false);
+                MapTip(fullscreen ? "Return to a window [F11 / Alt+Enter]." : "Enter fullscreen [F11 / Alt+Enter].");
+            }
             DrawNotice(g);
             DrawAdviserToast(g);
-            if (page == 0 && !BlockingSheet) DrawMapMenus(g);
+            if (page == 0 && !BlockingSheet) { DrawMapMenus(g); DrawCampaignSystemMenu(g); }
             DrawEncounterChoice(g);
             DrawMapHoverOverlay(g);
             DrawAdvisers(g);
@@ -155,6 +178,7 @@ namespace Clio.Desktop
         }
         private void DrawWorld(Graphics g)
         {
+            map.SetBounds(campaignSurface);
             SynchronizeUnitSelection();
             map.SelectedAnimalId = inspectorPage == 2 ? selectedAnimalId : -1;
             map.SelectedBandId = inspectorPage == 1 ? inspectedBandId : -1;
@@ -449,6 +473,7 @@ namespace Clio.Desktop
         private void AutoplayStep()
         {
             if (!autoplay || IsDisposed || dragging || map.IsNavigating) return;
+            if (CampaignSystemMenuOpen) return;
             if (BattleOverlayActive) { AutoplayBattleStep(); return; }
             if (BlockingSheet) return;
             if (game.IsOver) { StopAutoplay("Autoplay has ended with this band's story. Its chronicle remains."); return; }
@@ -521,7 +546,7 @@ namespace Clio.Desktop
             if (BattleOverlayActive)
             { if (GameViewport.Contains(e.Location)) HandleBattlePointerDown(Virtual(e.Location), e.Button); return; }
             if (e.Button == MouseButtons.Right) { OnRightDown(e); return; }
-            if (e.Button != MouseButtons.Left || !GameViewport.Contains(e.Location)) return;
+            if (e.Button != MouseButtons.Left || !InputViewport.Contains(e.Location)) return;
             PointF p = Virtual(e.Location);
             HideMapHover();
             if (HandleMapOverlayDown(p)) return;
@@ -554,7 +579,7 @@ namespace Clio.Desktop
             if (BattleOverlayActive) { dragging = false; Capture = false; return; }
             if (e.Button != MouseButtons.Left) return;
             if (!dragging) return; dragging = false; Capture = false; map.IsNavigating = false;
-            if (!moved && !BlockingSheet && GameViewport.Contains(e.Location))
+            if (!moved && !BlockingSheet && InputViewport.Contains(e.Location))
             {
                 PointF p = Virtual(e.Location); int stackCell = map.PickUnitStack(p.X, p.Y);
                 if (stackCell >= 0 && game.Explored.Contains(stackCell)) { OpenUnitStack(stackCell); Invalidate(); return; }
@@ -572,7 +597,7 @@ namespace Clio.Desktop
         }
         private void OnWheel(object sender, MouseEventArgs e)
         {
-            if (BlockingSheet || !GameViewport.Contains(e.Location)) return;
+            if (BlockingSheet || !InputViewport.Contains(e.Location)) return;
             if (AdviserToastVisible && AdviserToastBounds.Contains(Virtual(e.Location))) return;
             if (page == 0) { PointF point = Virtual(e.Location); if (!map.Bounds.Contains(point) || MapOverlayContains(point) || buttons.Any(b => b.Bounds.Contains(point))) return; ClearMapTransient(); map.IsNavigating = true; map.Zoom = Math.Max(0.82, Math.Min(MapRenderer.MaximumZoom, map.Zoom * (e.Delta > 0 ? 1.12 : 1 / 1.12))); settleCamera.Stop(); settleCamera.Start(); }
             else if (page == 4) { if (storyChoicesVisible) storyChoiceOffset = Math.Max(0, Math.Min(Math.Max(0, storyChoices.Count - 1), storyChoiceOffset + (e.Delta > 0 ? 2 : -2))); else if (chronicleEvents) noticeOffset = Math.Max(0, Math.Min(journal.Notices.Count - 1, noticeOffset + (e.Delta > 0 ? 2 : -2))); else chronicleOffset = Math.Max(0, Math.Min(VisibleChronicle().Length - 1, chronicleOffset + (e.Delta > 0 ? 2 : -2))); }
@@ -600,7 +625,9 @@ namespace Clio.Desktop
             if (noticeModal) { if (e.KeyCode == Keys.Enter) CloseNotice(false, !resumeAfterNotice); else if (e.KeyCode == Keys.Escape || e.KeyCode == Keys.P && resumeAfterNotice) DismissNotice(false); e.Handled = true; e.SuppressKeyPress = true; return; }
             if (adviserOpen) { if (e.KeyCode == Keys.Escape || e.KeyCode == Keys.Enter) CloseAdvisers(); e.Handled = true; e.SuppressKeyPress = true; return; }
             if (e.KeyCode == Keys.C && !e.Control && !e.Alt) { OpenAdvisers(null); e.Handled = true; e.SuppressKeyPress = true; return; }
-            if (e.KeyCode == Keys.Escape && page == 0 && (mapSelectionOpen || bandDetailsOpen || mapMenu != 0)) { ClearMapTransient(); buttons.Clear(); Invalidate(); e.Handled = true; e.SuppressKeyPress = true; return; }
+            if (e.KeyCode == Keys.Escape && page == 0 && (mapSelectionOpen || bandDetailsOpen || mapMenu != 0 || CampaignSystemMenuOpen)) { ClearMapTransient(); buttons.Clear(); Invalidate(); e.Handled = true; e.SuppressKeyPress = true; return; }
+            if (CampaignSystemMenuOpen)
+            { if (e.Control && e.KeyCode == Keys.S) SaveStory(); e.Handled = true; e.SuppressKeyPress = true; return; }
             if (e.KeyCode == Keys.P && !e.Control && !e.Alt) { ToggleAutoplay(); e.Handled = true; e.SuppressKeyPress = true; }
             else if (e.KeyCode == Keys.N && !e.Control && !e.Alt) { NextReadyBand(); e.Handled = true; e.SuppressKeyPress = true; }
             else if (e.KeyCode == Keys.Escape) { StopAutoplay("You are guiding your people again."); if (fullscreen) SetFullscreen(false); e.Handled = true; e.SuppressKeyPress = true; }

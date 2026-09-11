@@ -22,7 +22,7 @@ namespace Clio.Desktop
         private void CloseMapSelection()
         { mapSelectionOpen = false; mapCardExpanded = false; ClearUnitStack(); HideMapHover(); buttons.Clear(); Invalidate(); }
         private void ClearMapTransient()
-        { mapSelectionOpen = false; mapCardExpanded = false; bandDetailsOpen = false; ClearUnitStack(); CloseMapMenus(); HideMapHover(); map.OrderPreviewCell = -1; }
+        { mapSelectionOpen = false; mapCardExpanded = false; bandDetailsOpen = false; ClearUnitStack(); CloseMapMenus(); CloseCampaignSystemMenu(); HideMapHover(); map.OrderPreviewCell = -1; }
         private void HideMapHover()
         {
             bool highlighted = map.HoverOpportunityCell >= 0;
@@ -34,7 +34,8 @@ namespace Clio.Desktop
         { get { return NotificationCueBounds(58); } }
         private bool MapOverlayContains(PointF point)
         {
-            return AdviserToastVisible && AdviserToastBounds.Contains(point) || BandPanelContains(point) || MapMenuContains(point) || mapSelectionOpen && MapSelectionBounds.Contains(point) ||
+            return page == 0 && (CampaignHeaderContains(point) || CampaignDockContains(point) || CampaignFeedbackContains(point)) ||
+                AdviserToastVisible && AdviserToastBounds.Contains(point) || BandPanelContains(point) || MapMenuContains(point) || mapSelectionOpen && MapSelectionBounds.Contains(point) ||
                 RoutineNoticeVisible && MapToastBounds.Contains(point);
         }
         // Overlay backgrounds consume presses too. Empty space on a card must never
@@ -48,13 +49,13 @@ namespace Clio.Desktop
                     if (buttons[i].Bounds.Contains(point)) { buttons[i].Click(); return true; }
                 return true;
             }
-            if (mapMenu != 0)
+            if (mapMenu != 0 || CampaignSystemMenuOpen)
             {
                 // A visible toolbar/dock control can be used immediately. A
                 // background press only dismisses, without selecting through it.
                 for (int i = buttons.Count - 1; i >= 0; i--)
                     if (buttons[i].Bounds.Contains(point)) { buttons[i].Click(); return true; }
-                CloseMapMenus(); buttons.Clear(); Invalidate(); return true;
+                CloseMapMenus(); CloseCampaignSystemMenu(); buttons.Clear(); Invalidate(); return true;
             }
             if (mapSelectionOpen && map.Bounds.Contains(point) && !buttons.Any(b => b.Bounds.Contains(point))) CloseMapSelection();
             if (bandDetailsOpen && map.Bounds.Contains(point) && !buttons.Any(b => b.Bounds.Contains(point))) CloseBandDetails();

@@ -1,10 +1,12 @@
-# The quiet interface
+# The map-edge interface
 
-`quiet-30` reduces persistent text and panels while keeping the underlying records available. Symbols summarize the situation; hover explains them, and clicking opens the relevant detail. This is a presentation pass, with the existing simulation, gameplay modes and saved commands retained.
+`horizon-33` lets the campaign map fill the viewport, with compact controls around its edges. It builds on `quiet-30`: symbols summarize the situation, hover explains them, and clicking opens the relevant detail. This is a presentation pass, with the existing simulation, gameplay modes and saved commands retained.
 
-## One status strip on every page
+## Essential supplies on the map; complete records on other pages
 
-The same compact tribal strip appears on Map, Economy, Culture, Units, Diplomacy and History.
+The campaign map keeps four metrics at the top center: people, food, salt and wood. Main page navigation sits at the upper right, with adviser and event counters immediately beneath it. The broad central landscape stays available for travel and inspection. Band readiness, contact and conflict remain available through Units, Diplomacy and their relevant tooltips.
+
+Economy, Culture, Units, Diplomacy and History retain the fuller tribal status strip. Its symbols provide the following routes to detail; the map's four resource and population metrics retain their corresponding explanations.
 
 | Symbol | What it shows | Click to open |
 | --- | --- | --- |
@@ -26,7 +28,7 @@ Population change includes births, deaths and departures from the tribe. Stable 
 
 In `zoom-31`, scroll the mouse wheel in or out to change map scale. The closest view now reaches twice the previous maximum magnification. The starting view and farthest zoom-out are unchanged.
 
-The top map toolbar uses symbols for map controls and useful-place highlights. Hover identifies each control and its current state. The existing layers, known-land/atlas choice and food, salt and exploration information remain available.
+The map-edge toolbar uses symbols for map controls and useful-place highlights. Hover identifies each control and its current state. The existing layers, known-land/atlas choice and food, salt and exploration information remain available. Compact orders stay at the bottom edge rather than taking a full-width band away from the landscape.
 
 The selected-band panel starts closed. Open it from the band badge when you need that band's supplies, actions, personality or reunion information, then close it to restore space. The compact bottom action icons retain their explanatory tooltips and shortcuts.
 
@@ -34,7 +36,7 @@ In `battles-32`, Regions view outlines connected geographic regions. Entering co
 
 Selecting a hex or unit opens a compact record with immediate facts and useful actions. Expand it for the fuller place or unit account and ledger links. Opening a record spends no action. Inspecting a foreign group does not transfer your orders away from your controlled band.
 
-Automatic advice and routine event cues stay out of the way while a band panel, map record or crowded-hex roster is open. Their HUD counters and full records remain accessible; opening an inspector does not acknowledge advice.
+Automatic advice and routine event cues stay out of the way while a band panel, map record, crowded-hex roster or menu is open. Their counters and full records remain accessible; opening an inspector does not acknowledge advice.
 
 ## Economy without a wall of numbers
 
@@ -42,12 +44,16 @@ Economy Overview is a compact summary with clear routes to the detailed accounts
 
 ## One notification at a time
 
-Automatic advice is a small edge card: portrait, adviser role, one actionable sentence, the affected band, **Details** and dismiss. Details opens the full council explanation, tradeoffs and competing views. **High remains the default**, with beginner teaching intact; Moderate, Low and None keep their existing behavior.
+Automatic advice is a small right-edge card below the map's navigation and counters: portrait, adviser role, one actionable sentence, the affected band, **Details** and a visible dismiss button. Details opens the full council explanation, tradeoffs and competing views. **High remains the default**, with beginner teaching intact; Moderate, Low and None keep their existing behavior. Ledger pages retain their existing cue position.
 
 Routine events use a smaller icon-and-title cue with **Read** and dismiss. Hover gives the impact; Read opens the full account. Growth uses a green people symbol, losses a red people symbol, contact and gatherings a cooperation symbol, and combat a conflict symbol. Combat summaries use recorded casualties and damage, without inferring a victory.
 
-An adviser cue takes precedence over a routine event cue. Every event remains in History. Manual play no longer automatically opens a large history reading for each major outcome; the explicit autoplay pause-on-major-events setting remains available. Opening briefings, encounters requiring choices, semiautomatic story decisions and the ending screen retain their dedicated presentations.
+An adviser cue takes precedence over a routine event cue; both use the same map-edge location, so they never stack over one another. Clicking a cue or its background opens its details without selecting the map underneath. Every event remains in History. Manual play no longer automatically opens a large history reading for each major outcome; the explicit autoplay pause-on-major-events setting remains available. Opening briefings, encounters requiring choices, semiautomatic story decisions and the ending screen retain their dedicated presentations.
 
 ## Delivery status
 
-This design iteration is compiled for the Windows desktop prototype. No new regression tests, screenshot renders or playthrough checks are being run for `zoom-31`, as requested. Earlier validation records describe their own builds and are not verification of this interface pass.
+Validation remains paused for this `horizon-33` design iteration, as requested. No new regression tests, screenshot renders or playthrough checks are being run for this layout pass. Earlier validation records describe their own builds and are not verification of this interface pass.
+
+## Paper adviser portraits
+
+The adviser set now uses natural human pencil-and-ink studies on pale warm paper, drawing on Michael's Cromblog bird studies, human profile and shaded mountains. Square paper edges replace the circular portrait medals. All four existing roles, notices, guidance frequency and council access remain. See [portrait prompts and provenance](../src/Clio.Desktop/Assets/Advisers/PROMPTS.md).

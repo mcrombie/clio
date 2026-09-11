@@ -35,7 +35,7 @@ namespace Clio.Desktop
         }
         private void OnRightDown(MouseEventArgs e)
         {
-            if (e.Button != MouseButtons.Right || !GameViewport.Contains(e.Location)) return;
+            if (e.Button != MouseButtons.Right || !InputViewport.Contains(e.Location)) return;
             RightMoveTo(Virtual(e.Location));
         }
         private string RightMoveReason(int cell)
@@ -68,6 +68,7 @@ namespace Clio.Desktop
         }
         private void RightMoveTo(PointF point)
         {
+            if (CampaignSystemMenuOpen) { CloseCampaignSystemMenu(); buttons.Clear(); Invalidate(); return; }
             if (page != 0 || BlockingSheet || dragging || map.IsNavigating || !map.Bounds.Contains(point) ||
                 MapOverlayContains(point) || buttons.Any(b => b.Bounds.Contains(point))) return;
             int destination = map.PickUnitStack(point.X, point.Y);
