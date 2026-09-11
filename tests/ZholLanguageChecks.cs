@@ -132,11 +132,11 @@ namespace Clio.Tests
                 }
                 Check(game.Languages[0].Name == "Zhol" && replay.Languages[0].Name == "Zhol", "Normal chapter advancement and replay retain the founding language's proper name.");
             }
-            Game named = new Game(17, LanguageStyle.Resonant, Ancestry.Human, false, "  My hearth  ", CultureTemplateId.Zhol);
+            Game named = new Game(new GameSettings(17, LanguageStyle.Resonant, Ancestry.Human, false, "  My hearth  ") { FoundingCulture = CultureTemplateId.Zhol });
             Check(named.Player.Name == "My hearth" && named.Languages[0].Name == "Zhol", "A custom band name does not overwrite the selected language name.");
         }
         private static Game NewGame(int seed, CultureTemplateId template)
-        { return new Game(seed, LanguageStyle.Flowing, Ancestry.Human, true, "", template, HistoryPace.Generations, SimulationRules.MobileUnits); }
+        { return new Game(new GameSettings(seed, LanguageStyle.Flowing, Ancestry.Human, true, "") { FoundingCulture = template, Pace = HistoryPace.Generations, Rules = SimulationRules.MobileUnits }); }
         private static string ApplyLaw(string value, string law)
         {
             string mappings = law.Substring(0, law.IndexOf(", in every position", StringComparison.Ordinal));

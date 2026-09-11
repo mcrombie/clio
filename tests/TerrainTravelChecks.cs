@@ -20,7 +20,7 @@ namespace Clio.Tests
         }
         private static void Check(bool value, string message) { checks++; if (!value) throw new InvalidOperationException("Terrain travel check: " + message); }
         private static Game Create(int seed = 73421, bool enabled = true, SimulationRules rules = SimulationRules.MobileUnits, bool tribes = true, bool four = false)
-        { return new Game(seed, LanguageStyle.Flowing, Ancestry.Human, four, "Travel review", CultureTemplateId.Zhol, HistoryPace.Abstract, rules, true, true, tribes, enabled); }
+        { return new Game(new GameSettings(seed, LanguageStyle.Flowing, Ancestry.Human, four, "Travel review") { FoundingCulture = CultureTemplateId.Zhol, Pace = HistoryPace.Abstract, Rules = rules, CulturalPlaceNames = true, SaltEnabled = true, TribesEnabled = tribes, TerrainTravelEnabled = enabled }); }
         private static object Field(object target, string name) { return target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public).GetValue(target); }
         private static void Set(object target, string name, object value) { target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public).SetValue(target, value); }
         private static void Geography()

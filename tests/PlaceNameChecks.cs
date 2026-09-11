@@ -20,7 +20,7 @@ namespace Clio.Tests
         }
 
         private static Game NewGame(bool enabled, bool four)
-        { return new Game(73421, LanguageStyle.Flowing, Ancestry.Human, four, "Naming people", CultureTemplateId.Zhol, HistoryPace.Abstract, SimulationRules.MobileUnits, enabled); }
+        { return new Game(new GameSettings(73421, LanguageStyle.Flowing, Ancestry.Human, four, "Naming people") { FoundingCulture = CultureTemplateId.Zhol, Pace = HistoryPace.Abstract, Rules = SimulationRules.MobileUnits, CulturalPlaceNames = enabled }); }
 
         private static HashSet<int> Sight(Game game, int center)
         {
@@ -118,8 +118,7 @@ namespace Clio.Tests
         {
             foreach (bool mobile in new[] { false, true })
             {
-                Game game = new Game(73421, LanguageStyle.Flowing, Ancestry.Human, true, "", CultureTemplateId.Zhol,
-                    HistoryPace.Abstract, mobile ? SimulationRules.MobileUnits : SimulationRules.Classic, true);
+                Game game = new Game(new GameSettings(73421, LanguageStyle.Flowing, Ancestry.Human, true, "") { FoundingCulture = CultureTemplateId.Zhol, Pace = HistoryPace.Abstract, Rules = mobile ? SimulationRules.MobileUnits : SimulationRules.Classic, CulturalPlaceNames = true });
                 game.Beasts.Clear(); Band donor = game.Bands[1]; int remote = donor.CellId;
                 int destination = game.World.Cells[game.Player.CellId].Neighbors.First(n => game.World.Cells[n].IsLand);
                 donor.CellId = destination; game.Move(destination);

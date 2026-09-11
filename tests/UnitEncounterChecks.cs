@@ -21,7 +21,7 @@ namespace Clio.Tests
             CheckBandCombat(); CheckImmediateRelease(); CheckEcologyAndReceipts(); CheckLongPlay(); return assertions;
         }
         private static Game NewGame(int seed)
-        { return new Game(seed, LanguageStyle.Flowing, Ancestry.Human, false, "Encounter hearth", CultureTemplateId.Generated, HistoryPace.Generations, SimulationRules.MobileUnits); }
+        { return new Game(new GameSettings(seed, LanguageStyle.Flowing, Ancestry.Human, false, "Encounter hearth") { FoundingCulture = CultureTemplateId.Generated, Pace = HistoryPace.Generations, Rules = SimulationRules.MobileUnits }); }
         private static Beast Animal(Game game, int id, BeastKind kind, int count, int cell)
         { Beast result = new Beast { Id = id, CellId = cell, Kind = kind, Count = count }; game.Beasts.Add(result); return result; }
         private static Band People(Game game, int id, int count, int cell)
@@ -38,7 +38,7 @@ namespace Clio.Tests
 
         private static void CheckUpgrade()
         {
-            Game game = new Game(73421, LanguageStyle.Flowing, Ancestry.Human, false, "Old hearth", CultureTemplateId.EarlyEgyptian, HistoryPace.Generations);
+            Game game = new Game(new GameSettings(73421, LanguageStyle.Flowing, Ancestry.Human, false, "Old hearth") { FoundingCulture = CultureTemplateId.EarlyEgyptian, Pace = HistoryPace.Generations });
             Check(game.Rules == SimulationRules.Classic, "The released seven-argument constructor retains Classic rules.");
             game.Forage(); game.Camp(); game.EndTurn();
             int turn = game.Turn, actions = game.Actions, population = game.Player.Population, cell = game.Player.CellId;

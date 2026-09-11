@@ -20,7 +20,7 @@ namespace Clio.Tests
         private static void Check(bool value, string reason) { checks++; if (!value) throw new InvalidOperationException("Band personalities: " + reason); }
         private static object Field(object value, string name) { return value.GetType().GetField(name, Flags).GetValue(value); }
         private static Game New(int seed = 73421, bool enabled = true, bool terrain = true)
-        { return new Game(seed, LanguageStyle.Flowing, Ancestry.Human, false, "Zholhen", CultureTemplateId.Zhol, HistoryPace.Abstract, SimulationRules.MobileUnits, true, true, true, terrain, enabled); }
+        { return new Game(new GameSettings(seed, LanguageStyle.Flowing, Ancestry.Human, false, "Zholhen") { FoundingCulture = CultureTemplateId.Zhol, Pace = HistoryPace.Abstract, Rules = SimulationRules.MobileUnits, CulturalPlaceNames = true, SaltEnabled = true, TribesEnabled = true, TerrainTravelEnabled = terrain, BandPersonalitiesEnabled = enabled }); }
         private static Band Daughter(Game game)
         {
             game.Beasts.Clear(); game.Player.Population = 120; game.Player.Food = 10000; game.Player.Salt = 1000;
@@ -44,7 +44,7 @@ namespace Clio.Tests
         { foreach (Band band in game.ControlledBands) { band.Food = 10000; band.Salt = 1000; if (game.ActionsFor(band.Id) > 0) game.IssueBandCommand(band.Id, "wait"); } game.EndTurn(); }
         private static void DefaultsAndIdentity()
         {
-            Game old = new Game(73421, LanguageStyle.Flowing, Ancestry.Human, false, "Zholhen", CultureTemplateId.Zhol, HistoryPace.Abstract, SimulationRules.MobileUnits, true, true, true, true);
+            Game old = new Game(new GameSettings(73421, LanguageStyle.Flowing, Ancestry.Human, false, "Zholhen") { FoundingCulture = CultureTemplateId.Zhol, Pace = HistoryPace.Abstract, Rules = SimulationRules.MobileUnits, CulturalPlaceNames = true, SaltEnabled = true, TribesEnabled = true, TerrainTravelEnabled = true });
             Game disabled = New(73421, false), enabled = New();
             Check(!old.BandPersonalitiesEnabled && Stamp(old) == Stamp(disabled), "Every existing twelve-argument story matches explicit disabled rules exactly.");
             Check(Stamp(old.World) == Stamp(enabled.World) && Stamp(old.Beasts) == Stamp(enabled.Beasts) && Field(old, "actionRandom").Equals(Field(enabled, "actionRandom")) && Field(old, "ecologyRandom").Equals(Field(enabled, "ecologyRandom")),
@@ -60,8 +60,8 @@ namespace Clio.Tests
             Check(disabled.BandPersonalitiesEnabled && disabled.HasBandOrderThisTurn(0) && Stamp(disabled.Bands) == before && disabled.Turn == turn && disabled.ActionsFor(0) == ap && random.Equals(Field(disabled, "actionRandom")),
                 "Migration preserves supplies, actions, existing direction and RNG.");
             before = Stamp(disabled); disabled.EnableBandPersonalities(); Check(Stamp(disabled) == before, "Repeated migration is an exact no-op.");
-            Game classic = new Game(7, LanguageStyle.Flowing, Ancestry.Human, false, ""); before = Stamp(classic); classic.EnableBandPersonalities(); Check(Stamp(classic) == before, "Migration without tribes rejects without changing the old story.");
-            bool rejected = false; try { new Game(7, LanguageStyle.Flowing, Ancestry.Human, false, "", CultureTemplateId.Zhol, HistoryPace.Abstract, SimulationRules.MobileUnits, true, true, false, false, true); } catch (ArgumentException) { rejected = true; }
+            Game classic = new Game(new GameSettings(7, LanguageStyle.Flowing, Ancestry.Human, false, "")); before = Stamp(classic); classic.EnableBandPersonalities(); Check(Stamp(classic) == before, "Migration without tribes rejects without changing the old story.");
+            bool rejected = false; try { new Game(new GameSettings(7, LanguageStyle.Flowing, Ancestry.Human, false, "") { FoundingCulture = CultureTemplateId.Zhol, Pace = HistoryPace.Abstract, Rules = SimulationRules.MobileUnits, CulturalPlaceNames = true, SaltEnabled = true, TribesEnabled = false, TerrainTravelEnabled = false, BandPersonalitiesEnabled = true }); } catch (ArgumentException) { rejected = true; }
             Check(rejected, "Personality rules cannot initialize without tribes.");
         }
         private static void Contact()

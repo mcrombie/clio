@@ -31,24 +31,14 @@ namespace Clio.Desktop
         private static readonly int[] AutoplayIntervals = { 900, 300, 90 };
         private static readonly string[] AutoplaySpeeds = { "1×", "3×", "10×" };
         private const int MaximumCommands = 20000;
-        private int selected, page, startingSeed = 73421;
-        private LanguageStyle startingStyle = LanguageStyle.Flowing;
-        private CultureTemplateId startingCulture = CultureTemplateId.Zhol;
-        private HistoryPace startingPace = HistoryPace.Abstract;
-        private SimulationRules startingRules = SimulationRules.MobileUnits;
-        private bool startingPlaceNames = true;
-        private bool startingSalt = true;
-        private bool startingTribes = true;
-        private bool startingTerrainTravel = true;
-        private bool startingBandPersonalities = true;
-        private bool startingGatherings = true;
+        private int selected, page;
+        // The settings the current story was founded with. They are saved as the story's header.
+        private GameSettings starting = NewStorySettings(73421, LanguageStyle.Flowing, Ancestry.Human, false, NewStoryForm.ZholPeople, CultureTemplateId.Zhol, HistoryPace.Abstract);
         private StoryJournal journal;
         private int inspectorPage, inspectedBandId;
         private bool chronicleEvents = true;
         private int noticeOffset;
-        private Ancestry startingAncestry;
-        private bool startingFour;
-        private string startingName = NewStoryForm.ZholPeople, status = "A world without borders. Choose where your people go next.";
+        private string status = "A world without borders. Choose where your people go next.";
         private Point dragStart, lastMouse;
         private bool dragging, moved;
         private int chronicleOffset, languagePage;
@@ -64,7 +54,7 @@ namespace Clio.Desktop
             adviserPreferencePath = preferencesPath; adviserFrequency = AdviserPreferences.Read(preferencesPath);
             adviserGuidanceEnabled = adviserFrequency != AdviserFrequency.None;
             BackColor = Background; DoubleBuffered = true; KeyPreview = true; StartPosition = FormStartPosition.CenterScreen;
-            game = new Game(startingSeed, startingStyle, startingAncestry, startingFour, startingName, startingCulture, startingPace, startingRules, startingPlaceNames, startingSalt, startingTribes, startingTerrainTravel, startingBandPersonalities, startingGatherings);
+            game = new Game(starting);
             journal = new StoryJournal(game);
             EnableWoodForStory(); EnableLivestockForStory(); EnableBattlesForStory();
             selected = game.Player.CellId; map.Focus(game.World.Cells[selected]); ArmMapCommandBand(game.Player.Id);
@@ -250,7 +240,7 @@ namespace Clio.Desktop
                 Art.Panel(g, new RectangleF(x, 367, 400, 386), Panel, false);
                 Typography.Label(g, languagePreview ? (i == 0 ? "Founding language" : "Illustrative branch " + i) : "Profile " + lang.Id + (lang.ParentId < 0 ? " · Founder" : " · Parent " + lang.ParentId), new RectangleF(x + 17, 373, 368, 25), 11.5f, Art.Gold, 0.6f);
                 FittedTitle(g, lang.Name, new RectangleF(x + 16, 398, 368, 40), 30, Art.Ink);
-                string origin = lang.Template == CultureTemplateId.Zhol ? "Mandarin + Spanish · your founding vocabulary" : lang.Template == CultureTemplateId.Generated ? "Founding palette · " + startingStyle : HistoricalCultures.LanguageLabel(lang.Template) + " · experimental roots";
+                string origin = lang.Template == CultureTemplateId.Zhol ? "Mandarin + Spanish · your founding vocabulary" : lang.Template == CultureTemplateId.Generated ? "Founding palette · " + starting.Style : HistoricalCultures.LanguageLabel(lang.Template) + " · experimental roots";
                 Typography.Draw(g, lang.ParentId < 0 ? origin : lang.SoundChange, new RectangleF(x + 16, 438, 368, 42), 15, Art.Muted, TypeRole.Annotation);
                 Art.Rule(g, x + 17, 481, 366);
             }
@@ -644,30 +634,8 @@ namespace Clio.Desktop
         internal void WriteStory(string path)
         {
             if (commands.Count > MaximumCommands) throw new InvalidDataException("This prototype supports saving up to 20,000 commands per story.");
-            // Initial rules and logged upgrades preserve the outcomes of earlier saves.
-            bool battles = game.TacticalBattlesEnabled || commands.Contains("enable-tactical-battles");
-            bool livestock = battles || game.LivestockEnabled || commands.Contains("enable-livestock");
-            bool wood = livestock || game.WoodEnabled || commands.Contains("enable-wood");
-            bool decisionMetadata = HasStoryModeSave || wood;
-            bool historicTime = startingPace != HistoryPace.LegacySeasons;
-            bool gatherings = decisionMetadata || startingGatherings || commands.Contains("enable-gatherings");
-            bool personalities = gatherings || startingBandPersonalities || commands.Contains("enable-personalities");
-            bool terrain = personalities || startingTerrainTravel || commands.Contains("enable-terrain");
-            bool tribes = terrain || startingTribes || commands.Contains("enable-tribes");
-            bool salt = tribes || startingSalt || commands.Contains("enable-salt");
-            bool placeNames = salt || startingPlaceNames || commands.Contains("enable-place-names");
-            bool units = placeNames || startingRules == SimulationRules.MobileUnits || commands.Contains("enable-encounters");
-            List<string> lines = new List<string> { battles ? "CLIO-STORY-14" : livestock ? "CLIO-STORY-13" : wood ? "CLIO-STORY-12" : decisionMetadata ? "CLIO-STORY-11" : gatherings ? "CLIO-STORY-10" : personalities ? "CLIO-STORY-9" : terrain ? "CLIO-STORY-8" : tribes ? "CLIO-STORY-7" : salt ? "CLIO-STORY-6" : placeNames ? "CLIO-STORY-5" : units ? "CLIO-STORY-4" : historicTime ? "CLIO-STORY-3" : startingCulture == CultureTemplateId.Generated ? "CLIO-STORY-1" : "CLIO-STORY-2", startingSeed.ToString(CultureInfo.InvariantCulture), startingStyle.ToString(), startingAncestry.ToString(), startingFour ? "4" : "1", Convert.ToBase64String(Encoding.UTF8.GetBytes(startingName)) };
-            if (units || historicTime || startingCulture != CultureTemplateId.Generated) lines.Add(startingCulture.ToString());
-            if (units || historicTime) lines.Add(startingPace.ToString());
-            if (units) lines.Add(startingRules.ToString());
-            if (placeNames) lines.Add(startingPlaceNames ? "CulturalPlaces" : "LegacyPlaces");
-            if (salt) lines.Add(startingSalt ? "SaltEconomy" : "LegacySalt");
-            if (tribes) lines.Add(startingTribes ? "TribalBands" : "LegacyBands");
-            if (terrain) lines.Add(startingTerrainTravel ? "TerrainTravel" : "LegacyTravel");
-            if (personalities) lines.Add(startingBandPersonalities ? "BandPersonalities" : "LegacyPersonalities");
-            if (gatherings) lines.Add(startingGatherings ? "GatheringRelations" : "LegacyGatherings");
-            if (decisionMetadata) lines.Add(SerializeStoryModeSave());
+            // The header records the founding settings; logged upgrade commands preserve the outcomes of earlier saves.
+            List<string> lines = StoryHeader.Write(starting, SerializeStoryModeSave());
             lines.AddRange(commands); string contents = String.Join(Environment.NewLine, lines) + Environment.NewLine;
             if (Encoding.UTF8.GetByteCount(contents) + 3 > 2000000) throw new InvalidDataException("Story exceeds this prototype's two-megabyte save limit.");
             string temporary = Path.GetFullPath(path) + "." + Guid.NewGuid().ToString("N") + ".tmp";
@@ -729,51 +697,17 @@ namespace Clio.Desktop
             StopAutoplay(null);
             if (new FileInfo(path).Length > 2000000) throw new InvalidDataException("Story file is too large for this prototype.");
             string[] lines = File.ReadAllLines(path, Encoding.UTF8);
-            if (lines.Length < 6 || (lines[0] != "CLIO-STORY-1" && lines[0] != "CLIO-STORY-2" && lines[0] != "CLIO-STORY-3" && lines[0] != "CLIO-STORY-4" && lines[0] != "CLIO-STORY-5" && lines[0] != "CLIO-STORY-6" && lines[0] != "CLIO-STORY-7" && lines[0] != "CLIO-STORY-8" && lines[0] != "CLIO-STORY-9" && lines[0] != "CLIO-STORY-10" && lines[0] != "CLIO-STORY-11" && lines[0] != "CLIO-STORY-12" && lines[0] != "CLIO-STORY-13" && lines[0] != "CLIO-STORY-14")) throw new InvalidDataException("Unsupported story version.");
-            int headerLines = lines[0] == "CLIO-STORY-14" || lines[0] == "CLIO-STORY-13" || lines[0] == "CLIO-STORY-12" || lines[0] == "CLIO-STORY-11" ? 16 : lines[0] == "CLIO-STORY-10" ? 15 : lines[0] == "CLIO-STORY-9" ? 14 : lines[0] == "CLIO-STORY-8" ? 13 : lines[0] == "CLIO-STORY-7" ? 12 : lines[0] == "CLIO-STORY-6" ? 11 : lines[0] == "CLIO-STORY-5" ? 10 : lines[0] == "CLIO-STORY-4" ? 9 : lines[0] == "CLIO-STORY-3" ? 8 : lines[0] == "CLIO-STORY-2" ? 7 : 6;
-            if (lines.Length < headerLines) throw new InvalidDataException("The story header is incomplete.");
-            StoryModeSaveState stagedMode = headerLines >= 16 ? ParseStoryModeSave(lines[15]) : new StoryModeSaveState();
-            CultureTemplateId culture = CultureTemplateId.Generated;
-            if (headerLines >= 7 && (!Enum.TryParse<CultureTemplateId>(lines[6], out culture) || !Enum.IsDefined(typeof(CultureTemplateId), culture))) throw new InvalidDataException("Unknown founding culture template.");
-            HistoryPace pace = HistoryPace.LegacySeasons;
-            if (headerLines >= 8 && (!Enum.TryParse<HistoryPace>(lines[7], out pace) || !Enum.IsDefined(typeof(HistoryPace), pace))) throw new InvalidDataException("Unknown historical pace.");
-            SimulationRules rules = SimulationRules.Classic;
-            if (headerLines >= 9 && (!Enum.TryParse<SimulationRules>(lines[8], out rules) || !Enum.IsDefined(typeof(SimulationRules), rules))) throw new InvalidDataException("Unknown encounter rules.");
-            if (headerLines >= 10 && lines[9] != "CulturalPlaces" && lines[9] != "LegacyPlaces") throw new InvalidDataException("Unknown place naming rules.");
-            bool placeNames = headerLines >= 10 && lines[9] == "CulturalPlaces";
-            if (headerLines >= 11 && lines[10] != "SaltEconomy" && lines[10] != "LegacySalt") throw new InvalidDataException("Unknown salt rules.");
-            bool salt = headerLines >= 11 && lines[10] == "SaltEconomy";
-            if (headerLines >= 12 && lines[11] != "TribalBands" && lines[11] != "LegacyBands") throw new InvalidDataException("Unknown band organization rules.");
-            bool tribes = headerLines >= 12 && lines[11] == "TribalBands";
-            if (tribes && (rules != SimulationRules.MobileUnits || !salt)) throw new InvalidDataException("Tribes require moving unit and salt rules.");
-            if (headerLines >= 13 && lines[12] != "TerrainTravel" && lines[12] != "LegacyTravel") throw new InvalidDataException("Unknown terrain travel rules.");
-            bool terrain = headerLines >= 13 && lines[12] == "TerrainTravel";
-            if (headerLines >= 14 && lines[13] != "BandPersonalities" && lines[13] != "LegacyPersonalities") throw new InvalidDataException("Unknown band personality rules.");
-            bool personalities = headerLines >= 14 && lines[13] == "BandPersonalities";
-            if (personalities && !tribes) throw new InvalidDataException("Band personalities require tribal households.");
-            if (headerLines >= 15 && lines[14] != "GatheringRelations" && lines[14] != "LegacyGatherings") throw new InvalidDataException("Unknown gathering rules.");
-            bool gatherings = headerLines >= 15 && lines[14] == "GatheringRelations";
-            if (gatherings && (!tribes || !placeNames)) throw new InvalidDataException("Gatherings require tribal households and cultural place knowledge.");
-            int seed = Int32.Parse(lines[1], CultureInfo.InvariantCulture);
-            LanguageStyle style = (LanguageStyle)Enum.Parse(typeof(LanguageStyle), lines[2]);
-            Ancestry ancestry = (Ancestry)Enum.Parse(typeof(Ancestry), lines[3]);
-            if (!Enum.IsDefined(typeof(LanguageStyle), style) || !Enum.IsDefined(typeof(Ancestry), ancestry) || (lines[4] != "1" && lines[4] != "4")) throw new InvalidDataException("Invalid story settings.");
-            bool four = lines[4] == "4"; string name = Encoding.UTF8.GetString(Convert.FromBase64String(lines[5]));
-            if (name.Length > 40 || lines.Length > MaximumCommands + headerLines) throw new InvalidDataException("Story exceeds prototype limits.");
-            Game restored = new Game(seed, style, ancestry, four, name, culture, pace, rules, placeNames, salt, tribes, terrain, personalities, gatherings);
+            StoryHeader header = StoryHeader.Read(lines);
+            if (lines.Length - header.CommandStart > MaximumCommands) throw new InvalidDataException("Story exceeds prototype limits.");
+            StoryModeSaveState stagedMode = header.Decisions == null ? new StoryModeSaveState() : ParseStoryModeSave(header.Decisions);
+            Game restored = new Game(header.Settings);
             StoryJournal restoredJournal = new StoryJournal(restored);
-            foreach (string command in lines.Skip(headerLines)) { JournalSnapshot before = StoryJournal.Capture(restored); string result = Execute(restored, command); restoredJournal.Record(restored, before, command, result); }
+            foreach (string command in lines.Skip(header.CommandStart)) { JournalSnapshot before = StoryJournal.Capture(restored); string result = Execute(restored, command); restoredJournal.Record(restored, before, command, result); }
             ValidateStoryModeSave(stagedMode, restored.Turn);
-            game = restored; journal = restoredJournal; startingSeed = seed; startingStyle = style; startingAncestry = ancestry; startingFour = four; startingName = name; startingCulture = culture; startingPace = pace; startingRules = rules;
+            game = restored; journal = restoredJournal; starting = header.Settings;
             ResetStoryMode(); ApplyStoryModeSave(stagedMode);
-            startingPlaceNames = placeNames;
-            startingSalt = salt;
-            startingTribes = tribes;
-            startingTerrainTravel = terrain;
-            startingBandPersonalities = personalities;
-            startingGatherings = gatherings;
             Band restoredLeader = game.TribeLeaderBand ?? game.Player;
-            commands.Clear(); commands.AddRange(lines.Skip(headerLines)); selected = restoredLeader.CellId; map.Focus(game.World.Cells[selected]); map.Fog = true; chronicleOffset = 0; languagePage = 0;
+            commands.Clear(); commands.AddRange(lines.Skip(header.CommandStart)); selected = restoredLeader.CellId; map.Focus(game.World.Cells[selected]); map.Fog = true; chronicleOffset = 0; languagePage = 0;
             inspectorPage = 0; inspectedBandId = restoredLeader.Id; selectedAnimalId = -1; encounterChoice = false; page = 0; ClearNotices(true);
             culturePage = 0; ResetEconomyPage(); ResetUnitsPage(); ClearMapTransient(); ArmMapCommandBand(restoredLeader.Id);
             ClearReunionRoute(); ResetDiplomacy(); ResetGatheringUi(); ResetOpeningAnnouncement(); ResetEnding(); ReportEndingIfNeeded();
@@ -781,8 +715,17 @@ namespace Clio.Desktop
             initialGuidanceOffered = true;
             status = "Story restored. " + Timeline.Label(game, game.Turn) + " · " + Timeline.ConditionLabel(game) + (semiautomatic ? ". Semiautomatic is paused; Continue story when ready." : ". Manual control.");
         }
+        // Every story founded in the desktop app uses the complete current rule set.
+        private static GameSettings NewStorySettings(int seed, LanguageStyle style, Ancestry ancestry, bool fourBands, string name, CultureTemplateId culture, HistoryPace pace)
+        {
+            return new GameSettings(seed, style, ancestry, fourBands, name)
+            {
+                FoundingCulture = culture, Pace = pace, Rules = SimulationRules.MobileUnits, CulturalPlaceNames = true, SaltEnabled = true,
+                TribesEnabled = true, TerrainTravelEnabled = true, BandPersonalitiesEnabled = true, GatheringsEnabled = true
+            };
+        }
         private NewStoryForm CreateNewStoryDialog()
-        { return new NewStoryForm(startingSeed, startingStyle, startingAncestry, startingFour, CultureTemplateId.Zhol, startingPace); }
+        { return new NewStoryForm(starting.Seed, starting.Style, starting.Ancestry, starting.FourBands, CultureTemplateId.Zhol, starting.Pace); }
 
         private void NewStory()
         {
@@ -791,16 +734,8 @@ namespace Clio.Desktop
             using (NewStoryForm dialog = CreateNewStoryDialog())
             {
                 if (dialog.ShowDialog(this) != DialogResult.OK) return;
-                startingSeed = dialog.WorldSeed; startingStyle = dialog.SoundStyle; startingAncestry = dialog.FoundingAncestry;
-                startingFour = dialog.FourBands; startingName = dialog.BandName; startingCulture = dialog.Culture; startingPace = dialog.Pace;
-                startingRules = SimulationRules.MobileUnits;
-                startingPlaceNames = true;
-                startingSalt = true;
-                startingTribes = true;
-                startingTerrainTravel = true;
-                startingBandPersonalities = true;
-                startingGatherings = true;
-                game = new Game(startingSeed, startingStyle, startingAncestry, startingFour, startingName, startingCulture, startingPace, startingRules, startingPlaceNames, startingSalt, startingTribes, startingTerrainTravel, startingBandPersonalities, startingGatherings);
+                starting = NewStorySettings(dialog.WorldSeed, dialog.SoundStyle, dialog.FoundingAncestry, dialog.FourBands, dialog.BandName, dialog.Culture, dialog.Pace);
+                game = new Game(starting);
                 journal = new StoryJournal(game); ClearNotices(false); inspectorPage = 0; inspectedBandId = 0; selectedAnimalId = -1; encounterChoice = false;
                 ClearReunionRoute(); ResetDiplomacy(); ResetGatheringUi(); ResetOpeningAnnouncement(); ResetEnding(); ResetStoryMode();
                 commands.Clear(); selected = game.Player.CellId; chronicleOffset = 0; languagePage = 0;
@@ -842,7 +777,8 @@ namespace Clio.Desktop
             Game realGame = game; StoryJournal realJournal = journal; int realSelected = selected; string realStatus = status;
             try
             {
-                game = new Game(startingSeed, startingStyle, startingAncestry, true, startingName, startingCulture, startingPace, startingRules, startingPlaceNames, startingSalt, startingTribes, startingTerrainTravel); journal = new StoryJournal(game);
+                GameSettings fixture = starting.Clone(); fixture.FourBands = true; fixture.BandPersonalitiesEnabled = false; fixture.GatheringsEnabled = false;
+                game = new Game(fixture); journal = new StoryJournal(game);
                 selected = game.Player.CellId;
                 List<int> occupied = new List<int> { selected };
                 foreach (Band band in game.Bands.Skip(1))

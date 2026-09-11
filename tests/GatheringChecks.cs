@@ -17,8 +17,7 @@ namespace Clio.Tests
         private const BindingFlags Fields = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
         private static void Check(bool value, string reason) { assertions++; if (!value) throw new Exception("Gathering check: " + reason); }
         private static Game New(int seed, bool enabled)
-        { return new Game(seed, LanguageStyle.Flowing, Ancestry.Human, false, "First Hearth", CultureTemplateId.Zhol,
-            HistoryPace.Abstract, SimulationRules.MobileUnits, true, true, true, true, false, enabled); }
+        { return new Game(new GameSettings(seed, LanguageStyle.Flowing, Ancestry.Human, false, "First Hearth") { FoundingCulture = CultureTemplateId.Zhol, Pace = HistoryPace.Abstract, Rules = SimulationRules.MobileUnits, CulturalPlaceNames = true, SaltEnabled = true, TribesEnabled = true, TerrainTravelEnabled = true, BandPersonalitiesEnabled = false, GatheringsEnabled = enabled }); }
         private static Game Splinter(int seed)
         {
             Game game = New(seed, true); game.Beasts.Clear(); game.Player.Population = 120; game.Player.Food = game.Player.Salt = 10000;
@@ -159,8 +158,7 @@ namespace Clio.Tests
         }
         private static void CompatibilityAndMigration()
         {
-            Game old = new Game(73421, LanguageStyle.Flowing, Ancestry.Human, false, "First Hearth", CultureTemplateId.Zhol,
-                HistoryPace.Abstract, SimulationRules.MobileUnits, true, true, true, true, false);
+            Game old = new Game(new GameSettings(73421, LanguageStyle.Flowing, Ancestry.Human, false, "First Hearth") { FoundingCulture = CultureTemplateId.Zhol, Pace = HistoryPace.Abstract, Rules = SimulationRules.MobileUnits, CulturalPlaceNames = true, SaltEnabled = true, TribesEnabled = true, TerrainTravelEnabled = true, BandPersonalitiesEnabled = false });
             Game disabled = New(73421, false), enabled = New(73421, true);
             Check(!old.GatheringsEnabled && !disabled.GatheringsEnabled && Stamp(old, false) == Stamp(disabled, false), "All previous constructor semantics remain identical to the explicit disabled gathering overload.");
             for (int i = 0; i < 50 && !old.IsOver; i++)
@@ -177,7 +175,7 @@ namespace Clio.Tests
                 actionRandom == (uint)typeof(Game).GetField("actionRandom", Fields).GetValue(old) && ecologyRandom == (uint)typeof(Game).GetField("ecologyRandom", Fields).GetValue(old),
                 "Migration spends no supplies, actions, time or random draws.");
             InvalidPure(old, () => old.EnableGatherings(), "Repeated enabling cannot refill, reset or duplicate gathering history.");
-            Game classic = new Game(4, LanguageStyle.Flowing, Ancestry.Human, false, "Old");
+            Game classic = new Game(new GameSettings(4, LanguageStyle.Flowing, Ancestry.Human, false, "Old"));
             InvalidPure(classic, () => classic.EnableGatherings(), "Unsupported legacy rules cannot be partially upgraded by enabling gatherings.");
             InvalidPure(classic, () => classic.InviteGathering(0, 1, classic.Player.CellId), "Gathering commands remain harmless when disabled.");
             Check(typeof(Gathering).GetFields(BindingFlags.Public | BindingFlags.Instance).All(f => f.IsInitOnly) &&

@@ -22,7 +22,7 @@ namespace Clio.Tests
         }
         private static void Check(bool value, string message) { checks++; if (!value) throw new InvalidOperationException("Salt check: " + message); }
         private static Game Create(int seed, SimulationRules rules, bool enabled, bool four = false, HistoryPace pace = HistoryPace.Abstract)
-        { return new Game(seed, LanguageStyle.Flowing, Ancestry.Human, four, "Salt review", CultureTemplateId.Zhol, pace, rules, true, enabled); }
+        { return new Game(new GameSettings(seed, LanguageStyle.Flowing, Ancestry.Human, four, "Salt review") { FoundingCulture = CultureTemplateId.Zhol, Pace = pace, Rules = rules, CulturalPlaceNames = true, SaltEnabled = enabled }); }
         private static object Field(object value, string name)
         { return value.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public).GetValue(value); }
         private static void Initialization()

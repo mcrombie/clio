@@ -21,7 +21,7 @@ namespace Clio.Tests
         }
 
         private static Game NewGame(HistoryPace pace, int seed)
-        { return new Game(seed, LanguageStyle.Flowing, Ancestry.Human, false, "Living lineage", CultureTemplateId.Generated, pace); }
+        { return new Game(new GameSettings(seed, LanguageStyle.Flowing, Ancestry.Human, false, "Living lineage") { FoundingCulture = CultureTemplateId.Generated, Pace = pace }); }
 
         private static Beast AddDogs(Game game, int count)
         {

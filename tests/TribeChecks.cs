@@ -22,7 +22,7 @@ namespace Clio.Tests
         }
         private static void Check(bool value, string reason) { checks++; if (!value) throw new InvalidOperationException("Tribe check: " + reason); }
         private static Game Create(int seed = 73421, bool tribes = true, bool four = false)
-        { return new Game(seed, LanguageStyle.Flowing, Ancestry.Human, four, "Zholhen", CultureTemplateId.Zhol, HistoryPace.Abstract, SimulationRules.MobileUnits, true, true, tribes); }
+        { return new Game(new GameSettings(seed, LanguageStyle.Flowing, Ancestry.Human, four, "Zholhen") { FoundingCulture = CultureTemplateId.Zhol, Pace = HistoryPace.Abstract, Rules = SimulationRules.MobileUnits, CulturalPlaceNames = true, SaltEnabled = true, TribesEnabled = tribes }); }
         private static object Field(object value, string name)
         { return value.GetType().GetField(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance).GetValue(value); }
         private static Band Daughter(Game game)
@@ -32,7 +32,7 @@ namespace Clio.Tests
         }
         private static void DefaultsAndMigration()
         {
-            Game old = new Game(7, LanguageStyle.Flowing, Ancestry.Human, true, "");
+            Game old = new Game(new GameSettings(7, LanguageStyle.Flowing, Ancestry.Human, true, ""));
             Check(!old.TribesEnabled && old.ControlledBands.Single() == old.Player && old.TribeLeaderBand == old.Player, "Old constructors retain a single controlled founder.");
             string before = Stamp(old); old.EnableTribes(); old.IssueBandCommand(0, "forage");
             Check(Stamp(old) == before, "Disabled commands and migration without prerequisites are atomic.");
@@ -48,11 +48,11 @@ namespace Clio.Tests
             before = Stamp(enabled); enabled.TribeStatus(0); enabled.ControlledBands.ToArray(); enabled.TribeLeaderBand.ToString(); enabled.CanMoveBand(0, -1);
             Check(before == Stamp(enabled), "Membership and movement read models are pure.");
             bool rejected = false;
-            try { new Game(1, LanguageStyle.Flowing, Ancestry.Human, false, "", CultureTemplateId.Zhol, HistoryPace.Abstract, SimulationRules.Classic, true, true, true); }
+            try { new Game(new GameSettings(1, LanguageStyle.Flowing, Ancestry.Human, false, "") { FoundingCulture = CultureTemplateId.Zhol, Pace = HistoryPace.Abstract, Rules = SimulationRules.Classic, CulturalPlaceNames = true, SaltEnabled = true, TribesEnabled = true }); }
             catch (ArgumentException) { rejected = true; }
             Check(rejected, "Tribes cannot initialize without mobile encounters.");
             rejected = false;
-            try { new Game(1, LanguageStyle.Flowing, Ancestry.Human, false, "", CultureTemplateId.Zhol, HistoryPace.Abstract, SimulationRules.MobileUnits, true, false, true); }
+            try { new Game(new GameSettings(1, LanguageStyle.Flowing, Ancestry.Human, false, "") { FoundingCulture = CultureTemplateId.Zhol, Pace = HistoryPace.Abstract, Rules = SimulationRules.MobileUnits, CulturalPlaceNames = true, SaltEnabled = false, TribesEnabled = true }); }
             catch (ArgumentException) { rejected = true; }
             Check(rejected, "Tribes cannot initialize without salt.");
         }

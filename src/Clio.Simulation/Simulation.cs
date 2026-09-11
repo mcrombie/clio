@@ -63,63 +63,37 @@ namespace Clio.Simulation
         private int lastForageTurn = -1;
         public readonly CultureTemplateId FoundingCulture;
         public readonly HistoryPace Pace;
-        public Game(int seed, LanguageStyle style, Ancestry ancestry, bool fourBands, string name)
-            : this(seed, style, ancestry, fourBands, name, CultureTemplateId.Generated) { }
-
-        public Game(int seed, LanguageStyle style, Ancestry ancestry, bool fourBands, string name, CultureTemplateId template)
-            : this(seed, style, ancestry, fourBands, name, template, HistoryPace.LegacySeasons) { }
-
-        public Game(int seed, LanguageStyle style, Ancestry ancestry, bool fourBands, string name, CultureTemplateId template, HistoryPace pace)
-            : this(seed, style, ancestry, fourBands, name, template, pace, SimulationRules.Classic) { }
-
-        public Game(int seed, LanguageStyle style, Ancestry ancestry, bool fourBands, string name, CultureTemplateId template, HistoryPace pace, SimulationRules rules)
-            : this(seed, style, ancestry, fourBands, name, template, pace, rules, false) { }
-
-        public Game(int seed, LanguageStyle style, Ancestry ancestry, bool fourBands, string name, CultureTemplateId template, HistoryPace pace, SimulationRules rules, bool culturalPlaceNames)
-            : this(seed, style, ancestry, fourBands, name, template, pace, rules, culturalPlaceNames, false) { }
-
-        public Game(int seed, LanguageStyle style, Ancestry ancestry, bool fourBands, string name, CultureTemplateId template, HistoryPace pace, SimulationRules rules, bool culturalPlaceNames, bool saltEnabled)
-            : this(seed, style, ancestry, fourBands, name, template, pace, rules, culturalPlaceNames, saltEnabled, false) { }
-
-        public Game(int seed, LanguageStyle style, Ancestry ancestry, bool fourBands, string name, CultureTemplateId template, HistoryPace pace, SimulationRules rules, bool culturalPlaceNames, bool saltEnabled, bool tribesEnabled)
-            : this(seed, style, ancestry, fourBands, name, template, pace, rules, culturalPlaceNames, saltEnabled, tribesEnabled, false) { }
-
-        public Game(int seed, LanguageStyle style, Ancestry ancestry, bool fourBands, string name, CultureTemplateId template, HistoryPace pace, SimulationRules rules, bool culturalPlaceNames, bool saltEnabled, bool tribesEnabled, bool terrainTravelEnabled)
-            : this(seed, style, ancestry, fourBands, name, template, pace, rules, culturalPlaceNames, saltEnabled, tribesEnabled, terrainTravelEnabled, false) { }
-
-        public Game(int seed, LanguageStyle style, Ancestry ancestry, bool fourBands, string name, CultureTemplateId template, HistoryPace pace, SimulationRules rules, bool culturalPlaceNames, bool saltEnabled, bool tribesEnabled, bool terrainTravelEnabled, bool bandPersonalities)
-            : this(seed, style, ancestry, fourBands, name, template, pace, rules, culturalPlaceNames, saltEnabled, tribesEnabled, terrainTravelEnabled, bandPersonalities, false) { }
-
-        public Game(int seed, LanguageStyle style, Ancestry ancestry, bool fourBands, string name, CultureTemplateId template, HistoryPace pace, SimulationRules rules, bool culturalPlaceNames, bool saltEnabled, bool tribesEnabled, bool terrainTravelEnabled, bool bandPersonalities, bool gatherings)
+        public Game(GameSettings settings)
         {
-            if (!Enum.IsDefined(typeof(CultureTemplateId), template)) throw new ArgumentOutOfRangeException("template");
-            if (!Enum.IsDefined(typeof(HistoryPace), pace)) throw new ArgumentOutOfRangeException("pace");
-            if (!Enum.IsDefined(typeof(SimulationRules), rules)) throw new ArgumentOutOfRangeException("rules");
-            if (tribesEnabled && (rules != SimulationRules.MobileUnits || !saltEnabled)) throw new ArgumentException("Tribes require moving encounters and salt.");
-            if (bandPersonalities && !tribesEnabled) throw new ArgumentException("Band personalities require tribal bands.");
-            if (gatherings && (!tribesEnabled || !culturalPlaceNames)) throw new ArgumentException("Gatherings require tribal bands and remembered place names.");
-            FoundingCulture = template;
-            Pace = pace;
-            CulturalPlaceNames = culturalPlaceNames;
-            Seed = seed; World = World.Generate(seed, 4);
-            actionRandom = unchecked((uint)seed * 747796405u + 2891336453u);
-            ecologyRandom = unchecked((uint)seed * 277803737u + 14321u);
+            if (settings == null) throw new ArgumentNullException("settings");
+            if (!Enum.IsDefined(typeof(CultureTemplateId), settings.FoundingCulture)) throw new ArgumentOutOfRangeException("settings", "Unknown founding culture template.");
+            if (!Enum.IsDefined(typeof(HistoryPace), settings.Pace)) throw new ArgumentOutOfRangeException("settings", "Unknown historical pace.");
+            if (!Enum.IsDefined(typeof(SimulationRules), settings.Rules)) throw new ArgumentOutOfRangeException("settings", "Unknown encounter rules.");
+            if (settings.TribesEnabled && (settings.Rules != SimulationRules.MobileUnits || !settings.SaltEnabled)) throw new ArgumentException("Tribes require moving encounters and salt.");
+            if (settings.BandPersonalitiesEnabled && !settings.TribesEnabled) throw new ArgumentException("Band personalities require tribal bands.");
+            if (settings.GatheringsEnabled && (!settings.TribesEnabled || !settings.CulturalPlaceNames)) throw new ArgumentException("Gatherings require tribal bands and remembered place names.");
+            FoundingCulture = settings.FoundingCulture;
+            Pace = settings.Pace;
+            CulturalPlaceNames = settings.CulturalPlaceNames;
+            Seed = settings.Seed; World = World.Generate(settings.Seed, 4);
+            actionRandom = unchecked((uint)settings.Seed * 747796405u + 2891336453u);
+            ecologyRandom = unchecked((uint)settings.Seed * 277803737u + 14321u);
             Depletion = new double[World.Cells.Length];
-            LanguageProfile proto = HistoricalCultures.Create(template, seed, 0, style);
+            LanguageProfile proto = HistoricalCultures.Create(settings.FoundingCulture, settings.Seed, 0, settings.Style);
             Languages.Add(proto);
             Cell start = World.Cells.Where(c => c.IsLand && c.Terrain != Terrain.Ice && c.Terrain != Terrain.Mountains)
                 .OrderByDescending(c => c.Forage + 0.10 * c.Neighbors.Count(n => World.Cells[n].IsLand) - Math.Abs(c.Center.Y - 0.28) * 0.2).First();
             Bands.Add(new Band { Id = 0, CellId = start.Id, Population = 50, Food = 210, LanguageId = 0,
-                Name = String.IsNullOrWhiteSpace(name) ? (template == CultureTemplateId.Generated ? LanguageGenerator.PlaceName(proto, "people", 0) : HistoricalCultures.DefaultBandName(template)) : name.Trim(), Ancestry = ancestry });
-            if (fourBands)
+                Name = String.IsNullOrWhiteSpace(settings.BandName) ? (settings.FoundingCulture == CultureTemplateId.Generated ? LanguageGenerator.PlaceName(proto, "people", 0) : HistoricalCultures.DefaultBandName(settings.FoundingCulture)) : settings.BandName.Trim(), Ancestry = settings.Ancestry });
+            if (settings.FourBands)
             {
                 foreach (Ancestry other in Enum.GetValues(typeof(Ancestry)))
                 {
-                    if (other == ancestry) continue;
+                    if (other == settings.Ancestry) continue;
                     Cell home = World.Cells.Where(c => c.IsLand && c.Forage > 0.25 && c.Terrain != Terrain.Ice)
                         .OrderByDescending(c => Bands.Min(b => 1 - Vec3.Dot(c.Center, World.Cells[b.CellId].Center)) + Adaptation(other, c) * 0.12).First();
                     int id = Bands.Count;
-                    LanguageProfile language = LanguageGenerator.Create(seed + id * 37, style, id);
+                    LanguageProfile language = LanguageGenerator.Create(settings.Seed + id * 37, settings.Style, id);
                     Languages.Add(language);
                     Bands.Add(new Band { Id = id, CellId = home.Id, Population = 50, Food = 210, LanguageId = id,
                         Name = LanguageGenerator.PlaceName(language, "people", id), Ancestry = other });
@@ -132,7 +106,7 @@ namespace Clio.Simulation
                     cell.Terrain == Terrain.Mountains ? BeastKind.Dragon : Next(ref ecologyRandom) < 0.5 ? BeastKind.Deer : BeastKind.Aurochs;
                 Beasts.Add(new Beast { Id = Beasts.Count, CellId = cell.Id, Kind = kind, Count = kind == BeastKind.Dragon ? 1 : 12 + (int)(Next(ref ecologyRandom) * 70) });
             }
-            // Tutorial scenario guarantees nearby encounters, with the same interaction rules as all other herds.
+            // Tutorial scenario guarantees nearby encounters, with the same interaction settings.Rules as all other herds.
             Beasts.Add(new Beast { Id = Beasts.Count, CellId = start.Id, Kind = BeastKind.Wolves, Count = 8 });
             int neighbor = start.Neighbors.First(n => World.Cells[n].IsLand);
             Beasts.Add(new Beast { Id = Beasts.Count, CellId = neighbor, Kind = BeastKind.Aurochs, Count = 42 });
@@ -156,13 +130,13 @@ namespace Clio.Simulation
             }
             Reveal(start.Id); visited.Add(start.Id); UpdateKnowledge();
             Log("Fifty people gather beneath an unfamiliar sky. The story of " + Player.Name + " begins.");
-            if (rules == SimulationRules.MobileUnits) InitializeEncounters(false);
+            if (settings.Rules == SimulationRules.MobileUnits) InitializeEncounters(false);
             DiscoverAndShareBandPlaces();
-            if (saltEnabled) InitializeSaltEconomy();
-            if (tribesEnabled) InitializeTribes(false);
-            if (terrainTravelEnabled) InitializeTerrainTravel();
-            if (bandPersonalities) InitializeBandPersonalities(false);
-            if (gatherings) InitializeGatherings();
+            if (settings.SaltEnabled) InitializeSaltEconomy();
+            if (settings.TribesEnabled) InitializeTribes(false);
+            if (settings.TerrainTravelEnabled) InitializeTerrainTravel();
+            if (settings.BandPersonalitiesEnabled) InitializeBandPersonalities(false);
+            if (settings.GatheringsEnabled) InitializeGatherings();
         }
         private static double Next(ref uint state)
         { state ^= state << 13; state ^= state >> 17; state ^= state << 5; if (state == 0) state = 0x9e3779b9; return state / 4294967296.0; }

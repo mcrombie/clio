@@ -72,7 +72,7 @@ namespace Clio.Presentation
                 status = "Assign a camera or use Clio > Create globe scene.";
                 Debug.LogError(status, this); enabled = false; return;
             }
-            State = new Game(Seed, LanguageStyle, Ancestry, FourStartingBands, BandName);
+            State = new Game(new GameSettings(Seed, LanguageStyle, Ancestry, FourStartingBands, BandName));
             SelectedCellId = State.Player.CellId;
             runtimeRoot = new GameObject("Generated globe");
             runtimeRoot.transform.SetParent(transform, false);

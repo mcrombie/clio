@@ -5,37 +5,48 @@ namespace Clio.Tests
 {
     internal static class Program
     {
+        private static int assertions, failures;
+
         private static int Main()
+        {
+            Stopwatch timer = Stopwatch.StartNew();
+            // Each suite runs in isolation so one failure cannot hide the results of the suites after it.
+            Suite("world", WorldChecks.Run, null);
+            Suite("language", LanguageChecks.Run, null);
+            Suite("simulation", SimulationChecks.Run, null);
+            Suite("autoplay", AutoplayChecks.Run, () => AutoplayChecks.PacingReport);
+            Suite("historical cultures", HistoricalCultureChecks.Run, null);
+            Suite("Zhol language", ZholLanguageChecks.Run, null);
+            Suite("cultural place names", PlaceNameChecks.Run, null);
+            Suite("historical time", HistoryTimeChecks.Run, null);
+            Suite("domestic effects", DomesticEffectsChecks.Run, null);
+            Suite("mobile encounters", UnitEncounterChecks.Run, () => UnitEncounterChecks.PacingReport);
+            Suite("salt economy", SaltEconomyChecks.Run, () => SaltEconomyChecks.PacingReport);
+            Suite("tribes", TribeChecks.Run, () => TribeChecks.PacingReport);
+            Suite("terrain travel", TerrainTravelChecks.Run, () => TerrainTravelChecks.PacingReport);
+            Suite("band personalities", BandPersonalityChecks.Run, () => BandPersonalityChecks.PacingReport);
+            Suite("gatherings", GatheringChecks.Run, () => GatheringChecks.PacingReport);
+            string elapsed = timer.Elapsed.TotalSeconds.ToString("0.00");
+            if (failures == 0) { Console.WriteLine("PASS total: " + assertions + " assertions in " + elapsed + "s"); return 0; }
+            Console.WriteLine("FAIL total: " + failures + (failures == 1 ? " suite" : " suites") + " failed; " + assertions + " assertions passed in " + elapsed + "s");
+            return 1;
+        }
+
+        private static void Suite(string name, Func<int> run, Func<string> report)
         {
             try
             {
-                Stopwatch timer = Stopwatch.StartNew();
-                int world = WorldChecks.Run(); Console.WriteLine("PASS world: " + world + " assertions");
-                int language = LanguageChecks.Run(); Console.WriteLine("PASS language: " + language + " assertions");
-                int simulation = SimulationChecks.Run(); Console.WriteLine("PASS simulation: " + simulation + " assertions");
-                int autoplay = AutoplayChecks.Run(); Console.WriteLine("PASS autoplay: " + autoplay + " assertions");
-                Console.WriteLine(AutoplayChecks.PacingReport);
-                int historical = HistoricalCultureChecks.Run(); Console.WriteLine("PASS historical cultures: " + historical + " assertions");
-                int zhol = ZholLanguageChecks.Run(); Console.WriteLine("PASS Zhol language: " + zhol + " assertions");
-                int places = PlaceNameChecks.Run(); Console.WriteLine("PASS cultural place names: " + places + " assertions");
-                int time = HistoryTimeChecks.Run(); Console.WriteLine("PASS historical time: " + time + " assertions");
-                int domestic = DomesticEffectsChecks.Run(); Console.WriteLine("PASS domestic effects: " + domestic + " assertions");
-                int encounters = UnitEncounterChecks.Run(); Console.WriteLine("PASS mobile encounters: " + encounters + " assertions");
-                Console.WriteLine(UnitEncounterChecks.PacingReport);
-                int salt = SaltEconomyChecks.Run(); Console.WriteLine("PASS salt economy: " + salt + " assertions");
-                Console.WriteLine(SaltEconomyChecks.PacingReport);
-                int tribes = TribeChecks.Run(); Console.WriteLine("PASS tribes: " + tribes + " assertions");
-                Console.WriteLine(TribeChecks.PacingReport);
-                int terrain = TerrainTravelChecks.Run(); Console.WriteLine("PASS terrain travel: " + terrain + " assertions");
-                Console.WriteLine(TerrainTravelChecks.PacingReport);
-                int personalities = BandPersonalityChecks.Run(); Console.WriteLine("PASS band personalities: " + personalities + " assertions");
-                Console.WriteLine(BandPersonalityChecks.PacingReport);
-                int gatherings = GatheringChecks.Run(); Console.WriteLine("PASS gatherings: " + gatherings + " assertions");
-                Console.WriteLine(GatheringChecks.PacingReport);
-                Console.WriteLine("PASS total: " + (world + language + simulation + autoplay + historical + zhol + places + time + domestic + encounters + salt + tribes + terrain + personalities + gatherings) + " assertions in " + timer.Elapsed.TotalSeconds.ToString("0.00") + "s");
-                return 0;
+                int count = run();
+                assertions += count;
+                Console.WriteLine("PASS " + name + ": " + count + " assertions");
+                if (report != null) Console.WriteLine(report());
             }
-            catch (Exception ex) { Console.Error.WriteLine(ex); return 1; }
+            catch (Exception ex)
+            {
+                failures++;
+                Console.WriteLine("FAIL " + name + ": " + ex.Message);
+                Console.Error.WriteLine(ex);
+            }
         }
     }
 }

@@ -27,7 +27,7 @@ namespace Clio.Tests
         }
 
         private static Game NewGame(int seed, bool fourBands)
-        { return new Game(seed, LanguageStyle.Flowing, Ancestry.Human, fourBands, "Test hearth"); }
+        { return new Game(new GameSettings(seed, LanguageStyle.Flowing, Ancestry.Human, fourBands, "Test hearth")); }
 
         private static void CheckRejectedCommands()
         {

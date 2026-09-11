@@ -26,7 +26,7 @@ namespace Clio.Tests
         }
 
         private static Game NewGame(int seed)
-        { return new Game(seed, LanguageStyle.Flowing, Ancestry.Human, false, "Autoplay hearth"); }
+        { return new Game(new GameSettings(seed, LanguageStyle.Flowing, Ancestry.Human, false, "Autoplay hearth")); }
 
         private static void CheckFoodAndPartialTurns()
         {

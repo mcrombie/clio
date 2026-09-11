@@ -68,7 +68,7 @@ namespace Clio.Desktop
                 Seed, regional, cached, atlas, total.Elapsed.TotalSeconds, warmed, navigating));
         }
         private static Game NewGame()
-        { return new Game(Seed, LanguageStyle.Flowing, Ancestry.Human, false, ""); }
+        { return new Game(new GameSettings(Seed, LanguageStyle.Flowing, Ancestry.Human, false, "")); }
 
         private static void ChangeUnknownWorld(Game game)
         {

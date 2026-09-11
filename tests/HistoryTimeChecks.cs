@@ -14,8 +14,8 @@ namespace Clio.Tests
         public static int Run()
         {
             assertions = 0;
-            Game legacy = new Game(73421, LanguageStyle.Flowing, Ancestry.Human, false, "");
-            Game themed = new Game(73421, LanguageStyle.Flowing, Ancestry.Human, false, "", CultureTemplateId.EarlyEgyptian);
+            Game legacy = new Game(new GameSettings(73421, LanguageStyle.Flowing, Ancestry.Human, false, ""));
+            Game themed = new Game(new GameSettings(73421, LanguageStyle.Flowing, Ancestry.Human, false, "") { FoundingCulture = CultureTemplateId.EarlyEgyptian });
             Check(legacy.Pace == HistoryPace.LegacySeasons && themed.Pace == HistoryPace.LegacySeasons, "Both released constructor forms retain legacy seasons.");
             string[] seasons = { "Spring", "Summer", "Autumn", "Winter" };
             double[] factors = { 1.15, 1.0, 0.85, 0.40 };
@@ -76,7 +76,7 @@ namespace Clio.Tests
         }
 
         private static Game NewGame(HistoryPace pace)
-        { return new Game(73421, LanguageStyle.Flowing, Ancestry.Human, false, "Calendar hearth", CultureTemplateId.Generated, pace); }
+        { return new Game(new GameSettings(73421, LanguageStyle.Flowing, Ancestry.Human, false, "Calendar hearth") { FoundingCulture = CultureTemplateId.Generated, Pace = pace }); }
 
         private static void Execute(Game game, string command)
         {

@@ -50,8 +50,8 @@ namespace Clio.Tests
                     Check(LanguageGenerator.PlaceName(child, "river", 3).EndsWith("-" + child.Words["river"], StringComparison.Ordinal), "Place naming follows the inherited vocabulary.");
                 }
                 Check(Snapshot(language, false) == before, "Descendants and loans do not mutate the founding profile.");
-                Game themed = new Game(73421, LanguageStyle.Flowing, Ancestry.Human, true, "", template);
-                Game generated = new Game(73421, LanguageStyle.Flowing, Ancestry.Human, true, "");
+                Game themed = new Game(new GameSettings(73421, LanguageStyle.Flowing, Ancestry.Human, true, "") { FoundingCulture = template });
+                Game generated = new Game(new GameSettings(73421, LanguageStyle.Flowing, Ancestry.Human, true, ""));
                 Check(themed.FoundingCulture == template, "Game retains the selected founding template.");
                 Check(themed.Player.Name == (template == CultureTemplateId.Generated ? generated.Player.Name : HistoricalCultures.DefaultBandName(template)), "Blank names use the selected founding recipe.");
                 Check(Snapshot(themed.World, false) == Snapshot(generated.World, false), "Culture does not alter geography, climate or resources.");
@@ -63,7 +63,7 @@ namespace Clio.Tests
                     Check(Snapshot(themed.Languages[i], false) == Snapshot(generated.Languages[i], false), "Other founding languages retain original palettes.");
                     Check(Snapshot(themed.Bands[i], false) == Snapshot(generated.Bands[i], false), "Other founders retain original identities and starting states.");
                 }
-                Game named = new Game(17, LanguageStyle.Crisp, Ancestry.Dwarf, false, "  Cedar Keepers  ", template);
+                Game named = new Game(new GameSettings(17, LanguageStyle.Crisp, Ancestry.Dwarf, false, "  Cedar Keepers  ") { FoundingCulture = template });
                 Check(named.Player.Name == "Cedar Keepers", "A custom band name overrides historical naming.");
                 for (int i = 0; i < 18; i++)
                 {
@@ -81,14 +81,14 @@ namespace Clio.Tests
                 foreach (LanguageStyle style in Enum.GetValues(typeof(LanguageStyle)))
                 {
                     Check(Snapshot(HistoricalCultures.Create(CultureTemplateId.Generated, seed, 0, style), false) == Snapshot(LanguageGenerator.Create(seed, style, 0), false), "Generated template is the original generator.");
-                    Game legacy = new Game(seed, style, Ancestry.Elf, true, "");
-                    Game explicitDefault = new Game(seed, style, Ancestry.Elf, true, "", CultureTemplateId.Generated);
+                    Game legacy = new Game(new GameSettings(seed, style, Ancestry.Elf, true, ""));
+                    Game explicitDefault = new Game(new GameSettings(seed, style, Ancestry.Elf, true, "") { FoundingCulture = CultureTemplateId.Generated });
                     Exercise(legacy); Exercise(explicitDefault);
                     Check(Snapshot(legacy, true) == Snapshot(explicitDefault, true), "Legacy and explicit Generated constructors produce identical replay state.");
                 }
             }
             ExpectInvalid(delegate { HistoricalCultures.Create((CultureTemplateId)99, 0, 0, LanguageStyle.Flowing); });
-            ExpectInvalid(delegate { new Game(0, LanguageStyle.Flowing, Ancestry.Human, false, "", (CultureTemplateId)(-1)); });
+            ExpectInvalid(delegate { new Game(new GameSettings(0, LanguageStyle.Flowing, Ancestry.Human, false, "") { FoundingCulture = (CultureTemplateId)(-1) }); });
             CheckLegacyFixtures();
             CheckHistoricalFixtures();
             return assertions;
@@ -130,7 +130,7 @@ namespace Clio.Tests
                 "2C5D394BA2282B6075877B335AD216D04DB0C17A1F5446074F6E3FA081035D85" };
             for (int i = 0; i < seeds.Length; i++)
             {
-                Game game = new Game(seeds[i], styles[i], ancestries[i], i == 1 || i == 2, i == 1 ? "Old Hearth" : "");
+                Game game = new Game(new GameSettings(seeds[i], styles[i], ancestries[i], i == 1 || i == 2, i == 1 ? "Old Hearth" : ""));
                 Check(Snapshot(game, true) == initial[i], "Generated start matches the original atlas-02 core fingerprint.");
                 Exercise(game);
                 Check(Snapshot(game, true) == played[i], "Generated replay matches the original atlas-02 core fingerprint, including private RNG state.");
@@ -149,8 +149,27 @@ namespace Clio.Tests
             }
         }
 
-        // Captures private RNG/progress fields as well as public state. New descriptive provenance
-        // is omitted only when comparing a legacy replay; all lexical content is still included.
+        // The atlas-02 core's state, by type. A legacy snapshot hashes only these fields, so a field added by a
+        // later feature is ignored instead of breaking the frozen fingerprints, and only a change to released
+        // state trips them. Derived from, and verified against, every legacy snapshot this suite takes. Edit it
+        // only alongside an intentional replay migration.
+        private static readonly Dictionary<string, string[]> LegacyFields = new Dictionary<string, string[]>
+        {
+            { "Clio.Simulation.Band", new[] { "Ancestry", "CellId", "Cohesion", "Culture", "Food", "HomeCell", "Id", "LanguageId", "Name", "Population", "SafeTurns", "Settled" } },
+            { "Clio.Simulation.Beast", new[] { "BreedName", "CellId", "Count", "Domestic", "Hardiness", "Id", "Kind", "LastContactTurn", "OwnerId", "PositiveContacts", "Yield" } },
+            { "Clio.Simulation.Cell", new[] { "Center", "Corners", "Elevation", "Forage", "Id", "Moisture", "Neighbors", "RegionId", "Temperature", "Terrain" } },
+            { "Clio.Simulation.ChronicleEntry", new[] { "Text", "Turn" } },
+            { "Clio.Simulation.Game", new[] { "Actions", "Bands", "Beasts", "Chronicle", "Depletion", "Explored", "Knowledge", "Languages", "Seed", "Turn", "World",
+                "actionRandom", "campTurns", "ecologyRandom", "foodSecureTurns", "forageTurns", "hunts", "lastForageTurn", "provisionedCampTurns", "visited" } },
+            { "Clio.Simulation.LanguageProfile", new[] { "Etymons", "Generation", "Id", "Loans", "Name", "ParentId", "RootId", "Settings", "SoundChange", "Style", "Words" } },
+            { "Clio.Simulation.LanguageSettings", new[] { "CodaChance", "Codas", "MaxSyllables", "MinSyllables", "Onsets", "Vowels" } },
+            { "Clio.Simulation.Milestone", new[] { "Description", "Id", "Known", "Name", "Progress", "Target" } },
+            { "Clio.Simulation.Vec3", new[] { "X", "Y", "Z" } },
+            { "Clio.Simulation.World", new[] { "Cells", "Seed" } }
+        };
+
+        // Captures private RNG/progress fields as well as public state. A legacy snapshot keeps to LegacyFields,
+        // which omit later descriptive provenance but still include all lexical content.
         public static string Snapshot(object value, bool legacy)
         {
             StringBuilder text = new StringBuilder(); Append(text, value, legacy);
@@ -182,13 +201,12 @@ namespace Clio.Tests
             }
             FieldInfo[] fields = type.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
             Array.Sort(fields, delegate(FieldInfo a, FieldInfo b) { return StringComparer.Ordinal.Compare(a.Name, b.Name); });
+            string[] legacyFields = null;
+            if (legacy && !LegacyFields.TryGetValue(type.FullName, out legacyFields))
+                throw new InvalidOperationException("A legacy fingerprint reached " + type.FullName + ", which has no recorded atlas-02 fields.");
             foreach (FieldInfo field in fields)
             {
-                if (legacy && (field.Name == "Template" || field.Name == "FoundingCulture" || field.Name == "Pace" || field.Name == "Encounters" ||
-                    field.Name == "culturalPlaceNames" || field.Name == "placeNames" || field.Name == "saltEnabled" || field.Name == "saltSources" ||
-                    field.Name == "saltExplored" || field.Name == "Salt" || field.Name == "SaltShortageTurns" ||
-                    field.DeclaringType == typeof(Game) && (field.Name.StartsWith("tribe", StringComparison.Ordinal) || field.Name.StartsWith("travel", StringComparison.Ordinal) ||
-                    field.Name.StartsWith("gathering", StringComparison.Ordinal)))) continue;
+                if (legacy && Array.IndexOf(legacyFields, field.Name) < 0) continue;
                 text.Append(field.Name).Append('='); Append(text, field.GetValue(value), legacy);
             }
             text.Append("end;");
