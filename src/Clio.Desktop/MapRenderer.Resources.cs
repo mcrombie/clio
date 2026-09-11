@@ -52,6 +52,12 @@ namespace Clio.Desktop
         internal static void DrawSaltSourceIcon(Graphics g, SaltSource source, RectangleF box, bool badge)
         {
             if (box.Width <= 0 || box.Height <= 0 || source == SaltSource.None) return;
+            if (Art.PaperMode)
+            {
+                if (badge) MapSymbols.PaperWash(g, box, false);
+                MapSymbols.Salt(g, box, source, MapPaper.Ink);
+                return;
+            }
             GraphicsState state = g.Save();
             try
             {

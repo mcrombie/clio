@@ -226,6 +226,11 @@ namespace Clio.Desktop
         public static void DrawAnimal(Graphics g, BeastKind kind, RectangleF box, Color color, bool domestic)
         {
             if (box.Width <= 0 || box.Height <= 0) return;
+            if (Art.PaperMode)
+            {
+                AnimalSketch.Draw(g, kind, box, color, domestic);
+                return;
+            }
             float scale = Math.Min(box.Width / 108, box.Height / 78);
             GraphicsState state = g.Save();
             try

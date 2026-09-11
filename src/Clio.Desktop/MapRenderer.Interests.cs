@@ -40,7 +40,7 @@ namespace Clio.Desktop
             return game.World.Cells[cell].Neighbors.Count(id => !game.Explored.Contains(id));
         }
 
-        // A raised badge has its own hit area, clipped exactly to remembered
+        // A drawn annotation has its own hit area, clipped exactly to remembered
         // ground. It resolves to a place; it never joins the unit target lists.
         public int PickOpportunity(Game game, float x, float y, out int kind)
         {
@@ -137,27 +137,25 @@ namespace Clio.Desktop
             }
         }
 
-        // A paper symbol and a fine ground ring mark a useful place. Its exact
-        // former pick rectangle remains intact; there is no light shaft or glow.
+        // Illustrations lie directly on the chart, without a floating badge or
+        // pedestal. Retain the generous existing pick area and hover behavior.
         private static void DrawOpportunityBeacon(Graphics g, PointF ground, float size, Color ink, int kind, SaltSource source, bool highlighted = false)
         {
-            PointF light = new PointF(ground.X, ground.Y + size * .24f);
-            using (Brush paper = new SolidBrush(Color.FromArgb(200, UnitArt.MapPaper))) g.FillEllipse(paper, ground.X - size * .87f, light.Y - size * .31f, size * 1.74f, size * .62f);
-            using (Pen outer = new Pen(Color.FromArgb(highlighted ? 230 : 150, ink), highlighted ? 1.5f : .9f)) g.DrawEllipse(outer, ground.X - size * .87f, light.Y - size * .31f, size * 1.74f, size * .62f);
-            using (Pen inner = new Pen(Color.FromArgb(130, ink), .65f)) g.DrawArc(inner, ground.X - size * .61f, light.Y - size * .23f, size * 1.22f, size * .46f, 15, 150);
-            PointF badge = new PointF(ground.X, ground.Y - size * .47f);
-            float half = size * .56f;
-            PointF[] rim = { new PointF(badge.X, badge.Y - half), new PointF(badge.X + half * .86f, badge.Y - half * .5f), new PointF(badge.X + half * .86f, badge.Y + half * .5f), new PointF(badge.X, badge.Y + half), new PointF(badge.X - half * .86f, badge.Y + half * .5f), new PointF(badge.X - half * .86f, badge.Y - half * .5f) };
-            using (Brush paper = new SolidBrush(UnitArt.MapPaper)) g.FillPolygon(paper, rim);
-            using (Pen edge = new Pen(ink, highlighted ? 2f : 1.1f)) g.DrawPolygon(edge, rim);
-            RectangleF icon = new RectangleF(badge.X - size * .43f, badge.Y - size * .43f, size * .86f, size * .86f);
+            RectangleF icon = new RectangleF(ground.X - size * .66f, ground.Y - size * .87f, size * 1.32f, size * 1.32f);
+            RectangleF wash = icon; wash.Inflate(size * .2f, size * .12f);
+            MapSymbols.PaperWash(g, wash, highlighted);
             if (kind == 0) DrawFoodInterestIcon(g, icon);
             else if (kind == 1) DrawSaltSourceIcon(g, source, icon, false);
             else DrawFrontierInterestIcon(g, icon);
+            if (highlighted)
+                using (Pen underline = new Pen(Color.FromArgb(195, ink), 1.1f) { StartCap = LineCap.Round, EndCap = LineCap.Round })
+                    g.DrawBezier(underline, ground.X - size * .63f, ground.Y + size * .53f, ground.X - size * .1f, ground.Y + size * .49f,
+                        ground.X + size * .25f, ground.Y + size * .58f, ground.X + size * .6f, ground.Y + size * .51f);
         }
 
         internal static void DrawFoodInterestIcon(Graphics g, RectangleF box)
         {
+            if (Art.PaperMode) { MapSymbols.Forage(g, box, FoodInterestInk); return; }
             GraphicsState state = g.Save();
             g.TranslateTransform(box.X + box.Width * .5f, box.Y + box.Height * .5f); g.ScaleTransform(box.Width / 24, box.Height / 24);
             using (Brush shadow = new SolidBrush(Art.PaperMode ? Color.FromArgb(210, UnitArt.MapPaper) : Color.FromArgb(148, 34, 49, 32))) g.FillEllipse(shadow, -10, -10, 20, 21);
@@ -180,6 +178,7 @@ namespace Clio.Desktop
 
         internal static void DrawFrontierInterestIcon(Graphics g, RectangleF box)
         {
+            if (Art.PaperMode) { MapSymbols.Explore(g, box, FrontierInterestInk); return; }
             GraphicsState state = g.Save();
             g.TranslateTransform(box.X + box.Width * .5f, box.Y + box.Height * .5f); g.ScaleTransform(box.Width / 24, box.Height / 24);
             using (Brush shadow = new SolidBrush(Art.PaperMode ? Color.FromArgb(210, UnitArt.MapPaper) : Color.FromArgb(156, 28, 47, 48))) g.FillEllipse(shadow, -9, -9, 18, 18);

@@ -44,7 +44,7 @@ namespace Clio.Desktop
             Typography.Line(g, "Explore", new RectangleF(612, 176, 75, 30), 17, useful && map.Layer == 0 ? Art.Ink : Art.Muted, TypeRole.Annotation);
             Typography.Line(g, mapMenu == 4 ? "\u2039" : "\u203a", new RectangleF(704, 175, 22, 30), 21, Art.Gold, TypeRole.Heading, false, StringAlignment.Center);
             buttons.Add(new UiButton(bounds, delegate { ToggleMapMenu(4); }));
-            MapTip("Hover a leaf, crystal or blue compass on the map for its opportunity and movement cost. Click to inspect that place.");
+            MapTip("Hover a leafy sprig, salt crystals or compass rose for its opportunity and movement cost. Click to inspect that place.");
         }
 
         private static void DrawLandscapeMark(Graphics g, int kind, RectangleF bounds, Color ink)
@@ -57,9 +57,9 @@ namespace Clio.Desktop
 
         private void DrawLandscapeGuide(Graphics g, RectangleF bounds)
         {
-            LandscapeGuideRow(g, bounds, 0, 56, "Food opportunity", "A leaf marks at least twice this band's food needs per Gather. Move here, then Gather food to collect provisions.", Art.Gold);
+            LandscapeGuideRow(g, bounds, 0, 56, "Food opportunity", "A leafy sprig marks at least twice this band's food needs per Gather. Move here, then Gather food to collect provisions.", Art.Gold);
             LandscapeGuideRow(g, bounds, 1, 130, "Salt source", "A crystal marks known coastal salt or a salt spring. Travel to the source, then spend an action to gather salt.", LandscapeSalt);
-            LandscapeGuideRow(g, bounds, 2, 204, "Exploration opportunity", "A blue compass marks a known hex beside unknown land. Hover for a travel note; move here to extend your map.", LandscapePaths);
+            LandscapeGuideRow(g, bounds, 2, 204, "Exploration opportunity", "A compass rose marks a known hex beside unknown land. Hover for a travel note; move here to extend your map.", LandscapePaths);
             Art.Rule(g, bounds.X + 20, bounds.Y + 286, bounds.Width - 40);
             Typography.Label(g, "The effort of travel", new RectangleF(bounds.X + 20, bounds.Y + 298, bounds.Width - 40, 24), 12, Art.Gold, .6f);
             Typography.Draw(g, game.TerrainTravelEnabled ?

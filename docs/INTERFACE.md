@@ -8,6 +8,12 @@ Unexplored land is warm parchment, with faint paper grain rather than a blue fog
 
 Units, map notes and edge controls use paper counters and restrained ink borders. Muted ochre, blue-gray and warning accents distinguish selection, resources and danger without covering the geography. Paper adviser portraits belong to the same visual language. These marks do not change discovery, terrain movement costs, river crossings or mountain passability.
 
+## Illustrated map symbols
+
+`bestiary-35` replaces the filled animal silhouettes with pen-drawn profiles: wolves and dogs, wild oxen and cattle, goats, deer, mammoths and the optional dragon. Internal anatomy and sparse hatching become clearer at larger sizes. Population figures sit beside the sketch; fine health rules, red danger cues and domestic markings retain their meaning. Counters keep their existing size and pick area, and crowded places still collapse into a roster.
+
+Food opportunities use a gathered leafy sprig and berries, salt sources use cubic crystals with spring or coastal water marks, and exploration uses a compass rose. These marks lie directly on the map with soft paper underpainting. The old floating hex frames and pedestal rings are removed. Hover adds an ink emphasis and opens the same explanation; no supplies are granted by the illustration itself. Unknown land and occupied-hex exclusions remain intact.
+
 ## Essential supplies on the map; complete records on other pages
 
 The campaign map keeps four metrics at the top center: people, food, salt and wood. Main page navigation sits at the upper right, with adviser and event counters immediately beneath it. The broad central landscape stays available for travel and inspection. Band readiness, contact and conflict remain available through Units, Diplomacy and their relevant tooltips.
@@ -58,7 +64,7 @@ An adviser cue takes precedence over a routine event cue; both use the same map-
 
 ## Delivery status
 
-`vellum-34` compiled successfully using `build.ps1` without optional checks. Regression tests, screenshot renders and playthrough checks remain paused, as requested. Earlier validation records and screenshots describe their own builds, not verification of this paper-map pass.
+`bestiary-35` compiled successfully with `build.ps1` without optional checks. Regression tests, screenshot renders and playthrough checks remain paused, as requested. Earlier validation records and screenshots describe their own builds, not verification of this paper-map pass.
 
 ## Paper adviser portraits
 

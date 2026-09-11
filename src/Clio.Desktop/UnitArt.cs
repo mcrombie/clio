@@ -6,7 +6,7 @@ using Clio.Simulation;
 
 namespace Clio.Desktop
 {
-    // Small atlas counters: open ring = wild, ochre double edge = household,
+    // Small field annotations: broken ink rules = wild, paired rules = household,
     // pointed red corners = hostile. Shape remains useful without color.
     internal static class UnitArt
     {
@@ -149,56 +149,93 @@ namespace Clio.Desktop
         {
             bool hostile = health && profile.Hostile;
             Color ink = hostile ? MapDanger : animal.Domestic ? MapAccent : MapInk;
-            float r = Math.Min(7, box.Height * .24f);
+            float r = Math.Min(5, box.Height * .19f);
             using (GraphicsPath shape = CounterShape(box, r, hostile))
-            using (Brush fill = new SolidBrush(selected ? Color.FromArgb(255, 249, 240, 220) : Color.FromArgb(242, MapPaper)))
-            using (Pen edge = new Pen(Color.FromArgb(selected ? 255 : 177, ink), selected ? 2 : 1))
+            using (Brush fill = new SolidBrush(selected ? Color.FromArgb(253, 249, 240, 220) : Color.FromArgb(236, MapPaper)))
             {
-                g.FillPath(fill, shape); g.DrawPath(edge, shape);
-                if (animal.Domestic)
+                g.FillPath(fill, shape);
+                if (selected)
                 {
-                    RectangleF inner = box; inner.Inflate(-2.5f, -2.5f);
-                    using (GraphicsPath inset = CounterShape(inner, Math.Max(2, r - 2), false))
-                    using (Pen line = new Pen(Color.FromArgb(155, ink), .7f)) g.DrawPath(line, inset);
+                    using (Pen chosen = new Pen(Color.FromArgb(209, ink), 1.1f) { DashPattern = new float[] { 8, 4 }, LineJoin = LineJoin.Round })
+                        g.DrawPath(chosen, shape);
                 }
             }
+            // Broken marginal rules suggest a field annotation, rather than an
+            // enclosed interface card. Paired rules still identify domestic stock.
+            using (Pen rule = new Pen(Color.FromArgb(selected ? 189 : 129, ink), .65f))
+            {
+                g.DrawLine(rule, box.X + r, box.Y + 1.1f, box.X + box.Width * .34f, box.Y + .75f);
+                g.DrawLine(rule, box.X + box.Width * .64f, box.Y + .9f, box.Right - r, box.Y + 1.25f);
+                if (animal.Domestic)
+                {
+                    g.DrawLine(rule, box.X + r + 1, box.Y + 3.1f, box.X + box.Width * .33f, box.Y + 2.75f);
+                    g.DrawLine(rule, box.X + 1.1f, box.Y + r, box.X + .75f, box.Bottom - r);
+                    g.DrawLine(rule, box.X + 3.1f, box.Y + r + 1, box.X + 2.75f, box.Bottom - r - 1);
+                }
+            }
+            if (hostile)
+                using (Pen danger = new Pen(Color.FromArgb(227, MapDanger), 1.1f) { LineJoin = LineJoin.Round })
+                {
+                    g.DrawLines(danger, new[] { new PointF(box.Left + r, box.Top + .5f), new PointF(box.Left + .5f, box.Top + r), new PointF(box.Left + .7f, box.Top + r + 3) });
+                    g.DrawLines(danger, new[] { new PointF(box.Right - r, box.Top + .5f), new PointF(box.Right - .5f, box.Top + r), new PointF(box.Right - .7f, box.Top + r + 3) });
+                    g.DrawLines(danger, new[] { new PointF(box.Right - .5f, box.Bottom - r - 2), new PointF(box.Right - .5f, box.Bottom - r), new PointF(box.Right - r, box.Bottom - .5f) });
+                }
             if (detailed)
             {
-                RectangleF icon = new RectangleF(box.X + 3, box.Y + 3, box.Width * .52f, box.Height - (health ? 10 : 6));
+                RectangleF icon = new RectangleF(box.X + 2, box.Y + 3, box.Width * .55f, box.Height - (health ? 9 : 6));
                 IdentityArt.DrawAnimal(g, animal.Kind, icon, ink, animal.Domestic);
-                Typography.Line(g, animal.Count.ToString(CultureInfo.InvariantCulture), new RectangleF(box.X + box.Width * .53f, box.Y + 2, box.Width * .43f - 2, box.Height - 10), 14, ink, TypeRole.Utility, true, StringAlignment.Center);
-                if (health)
-                {
-                    float ratio = profile.MaxHealth <= 0 ? 0 : Math.Max(0, Math.Min(1, (float)profile.CurrentHealth / profile.MaxHealth));
-                    RectangleF bar = new RectangleF(box.X + 6, box.Bottom - 6, box.Width - 12, 2.5f);
-                    using (Brush empty = new SolidBrush(Color.FromArgb(95, ink))) g.FillRectangle(empty, bar);
-                    using (Brush full = new SolidBrush(profile.Wounds > 0 ? MapDanger : MapHealthy)) g.FillRectangle(full, bar.X, bar.Y, bar.Width * ratio, bar.Height);
-                }
-                else if (!animal.Domestic && animal.PositiveContacts > 0)
+                Typography.Line(g, animal.Count.ToString(CultureInfo.InvariantCulture), new RectangleF(box.X + box.Width * .60f, box.Y + 2, box.Width * .37f - 1, box.Height - 10), 15, ink, TypeRole.Heading, true, StringAlignment.Center);
+                if (!health && !animal.Domestic && animal.PositiveContacts > 0)
                     DrawTrust(g, animal.PositiveContacts, box, ink);
             }
             else
             {
-                IdentityArt.DrawAnimal(g, animal.Kind, new RectangleF(box.X + 2, box.Y + 1, box.Width - 4, box.Height - 2), ink, animal.Domestic);
-                if (health && profile.Wounds > 0)
-                    using (Pen wound = new Pen(MapDanger, 1.4f)) g.DrawLine(wound, box.X + 3, box.Bottom - 3, box.Right - 3, box.Y + 3);
+                IdentityArt.DrawAnimal(g, animal.Kind, new RectangleF(box.X + 2, box.Y + 1, box.Width - 4, box.Height - (health ? 5 : 2)), ink, animal.Domestic);
             }
+            if (health) DrawAnimalCondition(g, profile, box, detailed, ink);
             if (selected)
             {
                 RectangleF label = new RectangleF(box.X - 20, box.Y - 19, box.Width + 40, 17);
-                using (Brush background = new SolidBrush(Color.FromArgb(247, MapPaper))) g.FillRectangle(background, label);
-                using (Pen rule = new Pen(Color.FromArgb(130, ink), .7f)) g.DrawLine(rule, label.Left, label.Bottom - 1, label.Right, label.Bottom - 1);
+                using (GraphicsPath paper = CounterShape(label, 2, false))
+                using (Brush background = new SolidBrush(Color.FromArgb(243, MapPaper))) g.FillPath(background, paper);
+                using (Pen rule = new Pen(Color.FromArgb(118, ink), .65f))
+                {
+                    g.DrawLine(rule, label.Left + 2, label.Bottom - 1, label.X + label.Width * .41f, label.Bottom - 1.4f);
+                    g.DrawLine(rule, label.X + label.Width * .57f, label.Bottom - 1.2f, label.Right - 2, label.Bottom - 1);
+                }
                 string text = "#" + animal.Id.ToString(CultureInfo.InvariantCulture);
                 if (health && detailed) text += "  /  STR " + profile.Strength.ToString("0", CultureInfo.InvariantCulture);
-                Typography.Line(g, text, label, 10, ink, TypeRole.Utility, true, StringAlignment.Center);
+                Typography.Line(g, text, label, 11, ink, TypeRole.Annotation, true, StringAlignment.Center);
             }
+        }
+
+        private static void DrawAnimalCondition(Graphics g, UnitProfile profile, RectangleF box, bool detailed, Color ink)
+        {
+            float ratio = profile.MaxHealth <= 0 ? 0 : Math.Max(0, Math.Min(1, (float)profile.CurrentHealth / profile.MaxHealth));
+            float inset = detailed ? 6 : 3, x = box.X + inset, y = box.Bottom - (detailed ? 4.2f : 2.3f), width = box.Width - inset * 2;
+            using (Pen baseLine = new Pen(Color.FromArgb(89, ink), .7f)) g.DrawLine(baseLine, x, y, x + width, y - .2f);
+            Color condition = profile.Wounds > 0 ? MapDanger : MapHealthy;
+            if (ratio > 0)
+                using (Pen remaining = new Pen(Color.FromArgb(221, condition), detailed ? 1.35f : 1.0f) { StartCap = LineCap.Round, EndCap = LineCap.Round })
+                    g.DrawLine(remaining, x, y, x + width * ratio, y - .2f * ratio);
+            int divisions = detailed ? 4 : 2;
+            using (Pen tick = new Pen(Color.FromArgb(158, ink), .65f))
+                for (int i = 0; i <= divisions; i++)
+                {
+                    float at = x + width * i / divisions;
+                    g.DrawLine(tick, at, y - (detailed ? 1.2f : .75f), at + .15f, y + (detailed ? 1.1f : .7f));
+                }
         }
 
         private static void DrawTrust(Graphics g, int contacts, RectangleF box, Color ink)
         {
-            int dots = Math.Min(6, contacts);
-            using (Brush brush = new SolidBrush(ink))
-                for (int i = 0; i < dots; i++) g.FillEllipse(brush, box.X + box.Width * .5f + (i - (dots - 1) * .5f) * 4 - 1, box.Bottom - 5, 2, 2);
+            int marks = Math.Min(6, contacts);
+            using (Pen tally = new Pen(Color.FromArgb(192, ink), .8f))
+                for (int i = 0; i < marks; i++)
+                {
+                    float x = box.X + box.Width * .5f + (i - (marks - 1) * .5f) * 3.3f;
+                    g.DrawLine(tally, x - .5f, box.Bottom - 3, x + .7f, box.Bottom - 6);
+                }
         }
         private static GraphicsPath CounterShape(RectangleF box, float radius, bool pointed)
         {
@@ -207,10 +244,15 @@ namespace Clio.Desktop
                 path.AddPolygon(new[] { new PointF(box.Left + radius, box.Top), new PointF(box.Right - radius, box.Top), new PointF(box.Right, box.Top + radius), new PointF(box.Right, box.Bottom - radius), new PointF(box.Right - radius, box.Bottom), new PointF(box.Left + radius, box.Bottom), new PointF(box.Left, box.Bottom - radius), new PointF(box.Left, box.Top + radius) });
             else
             {
-                path.AddArc(box.Left, box.Top, radius * 2, radius * 2, 180, 90);
-                path.AddArc(box.Right - radius * 2, box.Top, radius * 2, radius * 2, 270, 90);
-                path.AddArc(box.Right - radius * 2, box.Bottom - radius * 2, radius * 2, radius * 2, 0, 90);
-                path.AddArc(box.Left, box.Bottom - radius * 2, radius * 2, radius * 2, 90, 90); path.CloseFigure();
+                float nick = Math.Min(1.4f, radius * .45f);
+                path.AddPolygon(new[] {
+                    new PointF(box.Left + nick, box.Top + .4f), new PointF(box.Left + box.Width * .28f, box.Top),
+                    new PointF(box.Left + box.Width * .66f, box.Top + .55f), new PointF(box.Right - nick, box.Top + .25f),
+                    new PointF(box.Right, box.Top + nick + .7f), new PointF(box.Right - .35f, box.Top + box.Height * .54f),
+                    new PointF(box.Right - .1f, box.Bottom - nick), new PointF(box.Right - nick, box.Bottom - .3f),
+                    new PointF(box.Left + box.Width * .41f, box.Bottom), new PointF(box.Left + nick, box.Bottom - .5f),
+                    new PointF(box.Left, box.Bottom - nick - .2f), new PointF(box.Left + .4f, box.Top + box.Height * .42f)
+                });
             }
             return path;
         }

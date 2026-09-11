@@ -3,7 +3,7 @@ $ErrorActionPreference = 'Stop'
 $projectRoot = $PSScriptRoot
 $compilerPath = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
 if (-not (Test-Path -LiteralPath $compilerPath)) { throw 'The Windows .NET Framework C# compiler is required for this build script.' }
-$outputPath = Join-Path $projectRoot 'build\vellum-34'
+$outputPath = Join-Path $projectRoot 'build\bestiary-35'
 New-Item -ItemType Directory -Path $outputPath -Force | Out-Null
 $coreSources = @(Get-ChildItem -LiteralPath (Join-Path $projectRoot 'src\Clio.Simulation') -Filter '*.cs' | ForEach-Object { $_.FullName })
 $coreLibrary = Join-Path $outputPath 'Clio.Simulation.dll'

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Linq;
 using Clio.Simulation;
 
@@ -25,9 +26,22 @@ namespace Clio.Desktop
             float width = cell.Radius >= 70 ? 84 : 39, height = cell.Radius >= 70 ? 23 : 20;
             if (cell.Radius < 70) label = "+" + (bands + animals - 1);
             RectangleF badge = new RectangleF(cell.Center.X + Math.Min(36, cell.Radius * .37f), cell.Center.Y - 22, width, height);
-            using (Brush ground = new SolidBrush(Color.FromArgb(248, UnitArt.MapPaper))) g.FillRectangle(ground, badge);
-            using (Pen edge = new Pen(Color.FromArgb(210, UnitArt.MapAccent), 1)) g.DrawRectangle(edge, badge.X, badge.Y, badge.Width, badge.Height);
-            Typography.Line(g, label, new RectangleF(badge.X + 3, badge.Y, badge.Width - 6, badge.Height), cell.Radius >= 70 ? 14 : 12, UnitArt.MapInk, TypeRole.Utility, true, StringAlignment.Center);
+            using (GraphicsPath paper = new GraphicsPath())
+            {
+                paper.AddPolygon(new[] {
+                    new PointF(badge.X + 1, badge.Y + .5f), new PointF(badge.X + badge.Width * .43f, badge.Y),
+                    new PointF(badge.Right - 1, badge.Y + .4f), new PointF(badge.Right, badge.Bottom - 1),
+                    new PointF(badge.X + badge.Width * .55f, badge.Bottom - .3f), new PointF(badge.X, badge.Bottom)
+                });
+                using (Brush ground = new SolidBrush(Color.FromArgb(239, UnitArt.MapPaper))) g.FillPath(ground, paper);
+            }
+            using (Pen rule = new Pen(Color.FromArgb(154, UnitArt.MapAccent), .7f))
+            {
+                g.DrawLine(rule, badge.X + 2, badge.Bottom - 1.4f, badge.X + badge.Width * .37f, badge.Bottom - 1);
+                g.DrawLine(rule, badge.X + badge.Width * .61f, badge.Bottom - 1.1f, badge.Right - 2, badge.Bottom - 1.6f);
+                g.DrawLine(rule, badge.X + 2.5f, badge.Y + 5, badge.X + 1.8f, badge.Bottom - 5);
+            }
+            Typography.Line(g, label, new RectangleF(badge.X + 3, badge.Y, badge.Width - 6, badge.Height), cell.Radius >= 70 ? 14 : 13, UnitArt.MapInk, TypeRole.Annotation, true, StringAlignment.Center);
             AddTarget(unitStackTargets, badge, cell.Cell.Id);
         }
 
