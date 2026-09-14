@@ -213,6 +213,7 @@ namespace Clio.Simulation
         }
         public string InviteGathering(int hostBandId, int guestBandId, int siteCellId)
         {
+            if (GuidedOpening) return GuidedOrdersOnly;
             if (BattleLocked) return "Finish the regional battle before arranging a gathering.";
             GatheringInvitation preview = PreviewGathering(hostBandId, guestBandId, siteCellId);
             if (!preview.CanInvite) return preview.Reason;
@@ -261,6 +262,7 @@ namespace Clio.Simulation
         }
         public string GiveGatheringAid(int hostBandId, int gatheringId, double food, double salt)
         {
+            if (GuidedOpening) return GuidedOrdersOnly;
             GatheringAidOffer preview = PreviewGatheringAid(hostBandId, gatheringId, food, salt); if (!preview.CanGive) return preview.Reason;
             GatheringState state = gatheringStates.Find(s => s.Id == gatheringId); Band host = Bands.Find(b => b.Id == hostBandId), guest = Bands.Find(b => b.Id == state.GuestBandId);
             SpendGatheringAction(host); host.Food -= food; host.Salt -= salt; guest.Food += food; guest.Salt += salt; state.AidGiven = true;
@@ -275,6 +277,7 @@ namespace Clio.Simulation
         }
         public string AgreeGatheringReturn(int hostBandId, int gatheringId)
         {
+            if (GuidedOpening) return GuidedOrdersOnly;
             GatheringReturnOffer preview = PreviewGatheringReturn(hostBandId, gatheringId); if (!preview.CanAgree) return preview.Reason;
             GatheringState state = gatheringStates.Find(s => s.Id == gatheringId); SpendGatheringAction(Bands.Find(b => b.Id == hostBandId));
             state.Status = GatheringStatus.ReturnPlanned; state.ReturnDueTurn = preview.ReturnDueTurn; state.WindowEndTurn = preview.WindowEndTurn;

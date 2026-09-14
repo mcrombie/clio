@@ -25,6 +25,7 @@ namespace Clio.Desktop
         // Called on native Shown and on a newly created story, never by replay.
         private void ShowInitialGuidance()
         {
+            if (GuidedGame) { initialGuidanceOffered = true; ResetGuidedPresentation(); return; }
             if (initialGuidanceOffered || game.IsOver) return;
             initialGuidanceOffered = true;
             AddAdviserGuidance(new Advisory("guidance:orientation", game.Turn, game.Player.Id, -1, game.Player.CellId,

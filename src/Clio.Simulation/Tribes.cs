@@ -80,6 +80,7 @@ namespace Clio.Simulation
         public int ActionsFor(int id)
         {
             if (!CanControlBand(id)) return 0;
+            if (GuidedOpening) return id == Player.Id ? Influence : 0;
             if (!tribeEnabled) return Actions;
             TribeMemberState state; return tribeMembers.TryGetValue(id, out state) ? Math.Max(0, state.Actions) : 0;
         }
@@ -103,11 +104,12 @@ namespace Clio.Simulation
         internal Band ActionBand { get { return tribeEnabled && tribeActionBand != null ? tribeActionBand : Player; } }
         private int ActionPoints
         {
-            get { return tribeEnabled ? ActionsFor(ActionBand.Id) : Actions; }
-            set { if (tribeEnabled) { tribeMembers[ActionBand.Id].Actions = value; if (ActionBand.Id == Player.Id) Actions = value; } else Actions = value; }
+            get { return GuidedOpening ? Influence : tribeEnabled ? ActionsFor(ActionBand.Id) : Actions; }
+            set { if (GuidedOpening) SetGuidedInfluence(value); else if (tribeEnabled) { tribeMembers[ActionBand.Id].Actions = value; if (ActionBand.Id == Player.Id) Actions = value; } else Actions = value; }
         }
         public bool CanMoveBand(int actorId, int target)
         {
+            if (GuidedOpening) return actorId == Player.Id && CanGuidedMoveToCell(target);
             Band actor = Bands.Find(b => b.Id == actorId);
             return !BattleLocked && actor != null && CanControlBand(actorId) && ActionsFor(actorId) > 0 && !IsOver && target >= 0 && target < World.Cells.Length &&
                 World.Cells[target].IsLand && World.Cells[actor.CellId].Neighbors.Contains(target) &&
@@ -117,6 +119,7 @@ namespace Clio.Simulation
         }
         public string IssueBandCommand(int actorId, string command)
         {
+            if (GuidedOpening) return IssueGuidedBandCommand(actorId, command);
             if (BattleLocked) return "Finish the regional battle before issuing world orders.";
             if (!TribesEnabled) return "Enable tribes before issuing orders to several bands.";
             if (!CanControlBand(actorId)) return "That living band does not belong to your tribe.";

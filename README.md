@@ -4,7 +4,17 @@
 
 Clio is an experimental Windows desktop game written in C#. Explore a generated hex world, maintain food and salt supplies, gather wood for fires and camps, form new bands, and watch related peoples separate into independent polities. Languages, place names, encounters and decisions become part of the recorded story.
 
-The current source corresponds to **bestiary-35**: a hand-drawn paper campaign map with compact edge controls, ink animal sketches and paper adviser portraits. It uses a native Windows Forms interface and an engine-independent simulation. A separate Unity presentation starter is included for future development.
+The current source corresponds to **sage-37**: a guided opening with the First Adviser, regional travel previews, visible wildlife and spoken situation reports on an aged paper campaign map. It uses a native Windows Forms interface and an engine-independent simulation. A separate Unity presentation starter is included for future development.
+
+## Guided beginning — sage-37
+
+New stories begin with fifty people and the First Adviser's evening introduction. End the first turn to rest without spending supplies. From turn 2, gain one influence each turn and spend it on **Gather** (food, wood and available salt together) or **Move** (travel to a neighboring region). Unspent influence carries forward. Move shows numbered destinations and route previews directly on the map. Wildlife counters return from turn 2; click them to inspect the animals.
+
+The adviser reports actual supply changes, population changes and new animal sightings. The visible **Voice** control and **V** shortcut mute narration immediately and remember the preference. Two opening recordings are embedded in the application. Live reports use an installed Windows voice unless the optional offline British voice has been prepared. See [Guided beginning](docs/GUIDED_OPENING.md) and [voice setup and credits](src/Clio.Desktop/Assets/Advisers/Voice/README.md).
+
+Uncheck **Guided beginning** when starting a new story to use the older Manual, Semiautomatic and Automatic modes. Existing stories keep their original rules. The earlier mechanics documented below describe these legacy modes.
+
+The ready-to-run Windows download on [Cromblog's Games page](https://cromblog.vercel.app/games#clio) includes the game and opening recordings. Extract the ZIP and open `Clio.exe`. Its optional **Enable offline adviser voice.cmd** downloads the additional voice only when you choose to run it; the game itself requires no network connection.
 
 ## Play on Windows
 
@@ -21,11 +31,13 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\build.ps1
 & ".\Launch Clio.cmd"
 ```
 
-The executable and simulation library are written to `build/bestiary-35/`. Keep them together. Build output and saved games are not included in the repository.
+The executable and simulation library are written to `build/sage-37/`. Keep them together. Build output and saved games are not included in the repository. Windows 10 or 11 with the .NET Framework 4.x runtime is the intended native environment.
+
+For the optional offline British voice, run `tools/prepare-adviser-voice.ps1` once, then build again. It downloads approximately 97 MB of pinned engine/model files. The build copies those files into its `voice` folder. Without them, the opening recordings still play and live reports use installed Windows speech. [Voice notices](tools/voice-licenses/README.md).
 
 Clio opens fullscreen. **F11** or **Alt+Enter** returns to a window; fullscreen is also available in the upper-left campaign menu. Save before closing an older build, then launch the updated version and load the story. Automation always loads stopped.
 
-New saves use the named **CLIO-STORY-15** header. Earlier V1–V14 stories retain their original readers and command replay, including restoration of an active tactical battle. Compatible older stories receive recorded rules upgrades after replay, including releasing any formerly domestic deer alive under the livestock rules. V15 saves require the updated application.
+New saves use the named **CLIO-STORY-16** header, including whether Guided beginning was selected. Earlier V1–V15 stories retain their original readers and command replay, including restoration of an active tactical battle. Compatible older stories receive recorded rules upgrades after replay. Existing guided stories receive the recorded wildlife upgrade for future turns. Older applications cannot read V16 stories or the new wildlife command; keep the original save when moving between builds.
 
 ## Three ways to play
 
@@ -73,7 +85,7 @@ Start with [Regions and battles](docs/BATTLES.md), [Gameplay modes](docs/STORY_M
 
 ## Development status
 
-This is a working design prototype, with balance and interface behavior still changing. **bestiary-35 compiled successfully in the primary local project.** No new tests, screenshot renders or playthrough checks accompanied these design changes, and compilation was not repeated in this GitHub checkout. Existing checks remain available through `build.ps1 -Test`; optional native rendering is available through `build.ps1 -Render`. These switches are opt-in. See [Validation status](docs/VALIDATION.md).
+This is a working design prototype, with balance and interface behavior still changing. **sage-37 compiled successfully in the primary local project and this GitHub checkout.** The public ZIP was checked for complete binaries and matching checksums. Tests, screenshot renders, gameplay, save/replay and audible playback checks remain paused at the project owner's request. Existing checks remain available through `build.ps1 -Test`; optional native rendering is available through `build.ps1 -Render`. These switches are opt-in. See [Validation status](docs/VALIDATION.md).
 
 The Unity files are a starter, not the desktop game or a finished Unity release. Follow [Unity setup](unity/README.md) to explore that path. Full 3D production, expanded institutions, agriculture and later eras remain future work.
 

@@ -73,6 +73,7 @@ namespace Clio.Simulation
             if (settings.BandPersonalitiesEnabled && !settings.TribesEnabled) throw new ArgumentException("Band personalities require tribal bands.");
             if (settings.GatheringsEnabled && (!settings.TribesEnabled || !settings.CulturalPlaceNames)) throw new ArgumentException("Gatherings require tribal bands and remembered place names.");
             FoundingCulture = settings.FoundingCulture;
+            GuidedOpening = settings.GuidedOpening;
             Pace = settings.Pace;
             CulturalPlaceNames = settings.CulturalPlaceNames;
             Seed = settings.Seed; World = World.Generate(settings.Seed, 4);
@@ -85,7 +86,7 @@ namespace Clio.Simulation
                 .OrderByDescending(c => c.Forage + 0.10 * c.Neighbors.Count(n => World.Cells[n].IsLand) - Math.Abs(c.Center.Y - 0.28) * 0.2).First();
             Bands.Add(new Band { Id = 0, CellId = start.Id, Population = 50, Food = 210, LanguageId = 0,
                 Name = String.IsNullOrWhiteSpace(settings.BandName) ? (settings.FoundingCulture == CultureTemplateId.Generated ? LanguageGenerator.PlaceName(proto, "people", 0) : HistoricalCultures.DefaultBandName(settings.FoundingCulture)) : settings.BandName.Trim(), Ancestry = settings.Ancestry });
-            if (settings.FourBands)
+            if (settings.FourBands && !GuidedOpening)
             {
                 foreach (Ancestry other in Enum.GetValues(typeof(Ancestry)))
                 {
@@ -137,6 +138,7 @@ namespace Clio.Simulation
             if (settings.TerrainTravelEnabled) InitializeTerrainTravel();
             if (settings.BandPersonalitiesEnabled) InitializeBandPersonalities(false);
             if (settings.GatheringsEnabled) InitializeGatherings();
+            if (GuidedOpening) InitializeGuidedOpening();
         }
         private static double Next(ref uint state)
         { state ^= state << 13; state ^= state >> 17; state ^= state << 5; if (state == 0) state = 0x9e3779b9; return state / 4294967296.0; }
@@ -165,7 +167,8 @@ namespace Clio.Simulation
         }
         public bool Known(string id) { Milestone m = Knowledge.Find(k => k.Id == id); return m != null && m.Known; }
         public bool CanMove(int id)
-        { return !BattleLocked && !IsOver && ActionBand.Population > 0 && ActionPoints > 0 && id >= 0 && id < World.Cells.Length && World.Cells[id].IsLand && World.Cells[ActionBand.CellId].Neighbors.Contains(id) &&
+        { if (GuidedOpening) return CanGuidedMoveToCell(id);
+          return !BattleLocked && !IsOver && ActionBand.Population > 0 && ActionPoints > 0 && id >= 0 && id < World.Cells.Length && World.Cells[id].IsLand && World.Cells[ActionBand.CellId].Neighbors.Contains(id) &&
             (Rules == SimulationRules.Classic || Explored.Contains(id) && !EncounterRules.HostileAt(this, id, ActionBand.Id)) &&
             (!TerrainTravelEnabled || Explored.Contains(id) && TravelRules.MoveCost(this, ActionBand, ActionBand.CellId, id) <= ActionPoints &&
                 (World.Cells[id].Terrain != Terrain.Ice || ActionBand.Food >= Upkeep(ActionBand) * 3)); }
@@ -173,6 +176,7 @@ namespace Clio.Simulation
         { message = BattleLocked ? "Finish the regional battle before issuing world orders." : IsOver || ActionBand.Population <= 0 ? "This band's story has ended. Start a new world to play again." : ActionPoints <= 0 ? "The band has spent its effort. End the turn to continue." : ""; return message.Length == 0; }
         public string Move(int id)
         {
+            if (GuidedOpening) return GuidedMove(id);
             string message; if (!CanAct(out message)) return message;
             if (TerrainTravelEnabled && id >= 0 && id < World.Cells.Length && Explored.Contains(id) &&
                 TravelRules.MoveCost(this, ActionBand, ActionBand.CellId, id) > ActionPoints)
@@ -197,6 +201,7 @@ namespace Clio.Simulation
         }
         public string Forage()
         {
+            if (GuidedOpening) return GuidedGather();
             string message; if (!CanAct(out message)) return message;
             double gained = ForageYield(ActionBand.CellId, ActionBand);
             ActionBand.Food += gained; Depletion[ActionBand.CellId] = Math.Min(1, Depletion[ActionBand.CellId] + 0.22); ActionPoints--;
@@ -211,6 +216,7 @@ namespace Clio.Simulation
         { return Beasts.Where(b => b.CellId == ActionBand.CellId && b.Count > 0 && !b.Domestic && (!tamable || b.Kind == BeastKind.Wolves || b.Kind == BeastKind.Aurochs || LivestockEnabled && b.Kind == BeastKind.Goats)).OrderBy(b => b.LastContactTurn == Turn).ThenByDescending(b => b.PositiveContacts).FirstOrDefault(); }
         public string Hunt()
         {
+            if (GuidedOpening) return GuidedOrdersOnly;
             if (Rules == SimulationRules.MobileUnits)
             { Beast target = NearbyBeast(false); return target == null ? "Select a known animal group to approach and hunt." : AttackAnimal(target.Id); }
             string message; if (!CanAct(out message)) return message;
@@ -235,6 +241,7 @@ namespace Clio.Simulation
         }
         public string Tame()
         {
+            if (GuidedOpening) return GuidedOrdersOnly;
             if (Rules == SimulationRules.MobileUnits)
             {
                 Beast target = Beasts.Where(b => b.CellId == ActionBand.CellId && b.Count > 0 && !b.Domestic && b.LastContactTurn != Turn && LivestockEconomy.CanDomesticate(this, b))
@@ -268,6 +275,7 @@ namespace Clio.Simulation
         }
         public string Camp()
         {
+            if (GuidedOpening) return GuidedOrdersOnly;
             string message; if (!CanAct(out message)) return message;
             if (ActionBand.Settled) return "Your seasonal camp is already here. Move to resume wandering.";
             if (ActionBand.Food < 30) return "Making camp needs 30 provisions.";
@@ -280,6 +288,7 @@ namespace Clio.Simulation
         }
         public string Split()
         {
+            if (GuidedOpening) return GuidedOrdersOnly;
             string message; if (!CanAct(out message)) return message;
             if (ActionBand.Population < 80) return Pace == HistoryPace.LegacySeasons ?
                 "A daughter band needs a population of at least 80 and two turns of food." :
@@ -317,6 +326,7 @@ namespace Clio.Simulation
         }
         public string EndTurn()
         {
+            if (GuidedOpening) return EndGuidedTurn();
             if (Rules == SimulationRules.MobileUnits) return EndTurnWithEncounters();
             if (IsOver) return "This band's story has ended. Its chronicle remains.";
             DiscoverAndShareBandPlaces();

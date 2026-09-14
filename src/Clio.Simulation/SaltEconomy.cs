@@ -15,7 +15,7 @@ namespace Clio.Simulation
         public static double GatherYield(Game game, Band band) { return game != null && game.SaltEnabled && band != null && Source(game, band.CellId) != SaltSource.None ? Need(band) * 5 : 0; }
         public static bool CanGather(Game game, Band band)
         {
-            return game != null && game.SaltEnabled && !game.IsOver && band != null && band.Population > 0 &&
+            return game != null && game.SaltEnabled && !game.GuidedOpening && !game.IsOver && band != null && band.Population > 0 &&
                 (!game.CanControlBand(band.Id) || game.ActionsFor(band.Id) > 0) && game.SaltPlaceKnown(band, band.CellId) && Source(game, band.CellId) != SaltSource.None;
         }
         public static IEnumerable<int> KnownSources(Game game)
@@ -114,6 +114,7 @@ namespace Clio.Simulation
         }
         public string GatherSalt()
         {
+            if (GuidedOpening) return "Gather brings back food, wood and any salt available in this region together, for one influence.";
             if (!SaltEnabled) return "Salt is not part of this story's current rules.";
             string message; if (!CanAct(out message)) return message;
             if (!SaltEconomy.CanGather(this, ActionBand)) return "Move to a known coastal salt source or inland spring to gather salt.";

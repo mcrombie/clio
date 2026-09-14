@@ -60,11 +60,11 @@ namespace Clio.Desktop
             BackColor = Background; DoubleBuffered = true; KeyPreview = true; StartPosition = FormStartPosition.CenterScreen;
             game = new Game(starting);
             journal = new StoryJournal(game);
-            EnableWoodForStory(); EnableLivestockForStory(); EnableBattlesForStory();
+            EnableWoodForStory(); if (!GuidedGame) { EnableLivestockForStory(); EnableBattlesForStory(); }
             selected = game.Player.CellId; map.Focus(game.World.Cells[selected]); ArmMapCommandBand(game.Player.Id);
             ResetAdvisers();
             MouseLeave += delegate { hoverPoint = new PointF(-1, -1); HideMapHover(); map.OrderPreviewCell = -1; Invalidate(); };
-            Deactivate += delegate { HideMapHover(); map.OrderPreviewCell = -1; Invalidate(); };
+            Deactivate += delegate { HideMapHover(); map.OrderPreviewCell = -1; StopFirstAdviserVoice(); Invalidate(); };
             MouseDown += OnDown; MouseMove += OnMove; MouseUp += OnUp; MouseWheel += OnWheel; KeyDown += OnKey;
             settleCamera.Tick += delegate { settleCamera.Stop(); if (!dragging) { map.IsNavigating = false; Invalidate(); } };
             autoplayTimer.Tick += delegate { AutoplayStep(); };
@@ -77,7 +77,7 @@ namespace Clio.Desktop
             Resize += delegate { CancelWindowGesture(); Invalidate(); };
         }
         protected override void Dispose(bool disposing)
-        { if (disposing) { autoplay = false; autoplayTimer.Dispose(); settleCamera.Dispose(); noticeTimer.Dispose(); campaignFeedbackTimer.Dispose(); unitAnimationTimer.Dispose(); mapHoverTimer.Dispose(); DisposeBattleView(); map.Dispose(); } base.Dispose(disposing); }
+        { if (disposing) { if (firstAdviserVoice != null) firstAdviserVoice.Dispose(); autoplay = false; autoplayTimer.Dispose(); settleCamera.Dispose(); noticeTimer.Dispose(); campaignFeedbackTimer.Dispose(); unitAnimationTimer.Dispose(); mapHoverTimer.Dispose(); DisposeBattleView(); map.Dispose(); } base.Dispose(disposing); }
         private PointF Virtual(Point p)
         {
             RectangleF viewport = GameViewport;
@@ -125,6 +125,7 @@ namespace Clio.Desktop
         {
             g.SmoothingMode = SmoothingMode.AntiAlias; g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
             g.Clear(Background); buttons.Clear();
+            if (GuidedGame) { DrawGuidedFrame(g); return; }
             if (BattleOverlayActive) { DrawBattle(g); return; }
             if (page == 0)
             {
@@ -187,6 +188,7 @@ namespace Clio.Desktop
         }
         private void DrawWorld(Graphics g)
         {
+            map.GuidedPresentation = false; map.IntroPresentation = false;
             map.SetBounds(campaignSurface);
             SynchronizeUnitSelection();
             map.SelectedAnimalId = inspectorPage == 2 ? selectedAnimalId : -1;
@@ -450,6 +452,7 @@ namespace Clio.Desktop
         }
         private void Command(string command)
         {
+            if (GuidedGame && !command.StartsWith("enable-", StringComparison.Ordinal)) { RunGuidedCommand(command); return; }
             if (BattleOverlayActive || adviserOpen || gatheringChoice || openingAnnouncement || StoryModeBlocking) return;
             if (!command.StartsWith("enable-", StringComparison.Ordinal) && !RequireManualOrders()) return;
             ClearMapTransient();
@@ -473,6 +476,7 @@ namespace Clio.Desktop
         }
         private void ToggleAutoplay()
         {
+            if (GuidedGame) return;
             if (BlockingSheet) return;
             if (semiautomatic) { ContinueSemiautomatic(); return; }
             ClearMapTransient();
@@ -532,6 +536,19 @@ namespace Clio.Desktop
         }
         internal static string Execute(Game target, string command)
         {
+            if (command == "enable-guided-wildlife") return target.EnableGuidedWildlife();
+            if (command == "guided-gather")
+            {
+                if (!target.GuidedOpening) throw new InvalidDataException("Influence orders require a guided story.");
+                return target.GuidedGather();
+            }
+            if (command.StartsWith("guided-move:", StringComparison.Ordinal))
+            {
+                int destination;
+                if (!target.GuidedOpening || !Int32.TryParse(command.Substring(12), NumberStyles.None, CultureInfo.InvariantCulture, out destination))
+                    throw new InvalidDataException("Invalid guided move.");
+                return target.GuidedMove(destination);
+            }
             if (command == "enable-tactical-battles") return target.EnableTacticalBattles();
             if (command.StartsWith("battle-", StringComparison.Ordinal)) return target.ExecuteBattleCommand(command);
             int bandId; string order;
@@ -564,6 +581,7 @@ namespace Clio.Desktop
         }
         private void OnDown(object sender, MouseEventArgs e)
         {
+            if (GuidedGame) { GuidedPointerDown(e); return; }
             if (BattleOverlayActive)
             { if (GameViewport.Contains(e.Location)) HandleBattlePointerDown(Virtual(e.Location), e.Button); return; }
             if (e.Button == MouseButtons.Right) { OnRightDown(e); return; }
@@ -578,6 +596,7 @@ namespace Clio.Desktop
         }
         private void OnMove(object sender, MouseEventArgs e)
         {
+            if (GuidedGame) { GuidedPointerMove(e); return; }
             PointF p = Virtual(e.Location);
             if (BattleOverlayActive) { hoverPoint = p; UpdateBattleHover(p); return; }
             int oldHover = buttons.FindIndex(b => b.Bounds.Contains(hoverPoint)), newHover = buttons.FindIndex(b => b.Bounds.Contains(p));
@@ -597,6 +616,7 @@ namespace Clio.Desktop
         }
         private void OnUp(object sender, MouseEventArgs e)
         {
+            if (GuidedGame) { GuidedPointerUp(e); return; }
             if (BattleOverlayActive) { dragging = false; Capture = false; return; }
             if (e.Button != MouseButtons.Left) return;
             if (!dragging) return; dragging = false; Capture = false; map.IsNavigating = false;
@@ -618,6 +638,7 @@ namespace Clio.Desktop
         }
         private void OnWheel(object sender, MouseEventArgs e)
         {
+            if (GuidedGame) { GuidedWheel(e); return; }
             if (BlockingSheet || !InputViewport.Contains(e.Location)) return;
             if (AdviserToastVisible && AdviserToastBounds.Contains(Virtual(e.Location))) return;
             if (page == 0) { PointF point = Virtual(e.Location); if (!map.Bounds.Contains(point) || MapOverlayContains(point) || buttons.Any(b => b.Bounds.Contains(point))) return; ClearMapTransient(); map.IsNavigating = true; map.Zoom = Math.Max(0.82, Math.Min(MapRenderer.MaximumZoom, map.Zoom * (e.Delta > 0 ? 1.12 : 1 / 1.12))); settleCamera.Stop(); settleCamera.Start(); }
@@ -627,6 +648,7 @@ namespace Clio.Desktop
         private void OnKey(object sender, KeyEventArgs e)
         {
             if (IsFullscreenShortcut(e.KeyData)) { ToggleFullscreen(); e.Handled = true; e.SuppressKeyPress = true; return; }
+            if (GuidedGame) { GuidedKey(e); return; }
             if (BattleOverlayActive) { HandleBattleKey(e); e.Handled = true; e.SuppressKeyPress = true; return; }
             if (StoryModeBlocking)
             {
@@ -676,6 +698,7 @@ namespace Clio.Desktop
             {
                 if (dialog.ShowDialog(this) != DialogResult.OK) return;
                 try { WriteStory(dialog.FileName); status = "Story saved."; } catch (Exception ex) { status = "Could not save: " + ex.Message; }
+                if (GuidedGame) guidedResult = status;
             }
             Invalidate();
         }
@@ -720,6 +743,7 @@ namespace Clio.Desktop
                 try
                 {
                     ReadStory(dialog.FileName);
+                    if (GuidedGame) { ResetGuidedPresentation(); return; }
                     // Name the remembered land only after replaying the old rules.
                     if (!game.CulturalPlaceNames && commands.Count < MaximumCommands) Command("enable-place-names");
                     // Preserve every previous outcome before introducing a reserve
@@ -736,7 +760,7 @@ namespace Clio.Desktop
                     EnableWoodForStory(); EnableLivestockForStory(); EnableBattlesForStory();
                     status = "Story restored. " + Timeline.Label(game, game.Turn) + (semiautomatic ? ". Semiautomatic is paused; Continue story when ready." : ". Manual control.");
                 }
-                catch (Exception ex) { status = "Could not load story: " + ex.Message; }
+                catch (Exception ex) { status = "Could not load story: " + ex.Message; if (GuidedGame) guidedResult = status; }
             }
             Invalidate();
         }
@@ -761,15 +785,16 @@ namespace Clio.Desktop
             ClearReunionRoute(); ResetDiplomacy(); ResetGatheringUi(); ResetOpeningAnnouncement(); ResetEnding(); ReportEndingIfNeeded();
             ResetAdvisers();
             initialGuidanceOffered = true;
+            if (GuidedGame) { ResetGuidedPresentation(); return; }
             status = "Story restored. " + Timeline.Label(game, game.Turn) + " · " + Timeline.ConditionLabel(game) + (semiautomatic ? ". Semiautomatic is paused; Continue story when ready." : ". Manual control.");
         }
-        // Every story founded in the desktop app uses the complete current rule set.
+        // New desktop stories use the guided opening; the founding dialog can select legacy play.
         private static GameSettings NewStorySettings(int seed, LanguageStyle style, Ancestry ancestry, bool fourBands, string name, CultureTemplateId culture, HistoryPace pace)
         {
             return new GameSettings(seed, style, ancestry, fourBands, name)
             {
                 FoundingCulture = culture, Pace = pace, Rules = SimulationRules.MobileUnits, CulturalPlaceNames = true, SaltEnabled = true,
-                TribesEnabled = true, TerrainTravelEnabled = true, BandPersonalitiesEnabled = true, GatheringsEnabled = true
+                TribesEnabled = true, TerrainTravelEnabled = true, BandPersonalitiesEnabled = true, GatheringsEnabled = true, GuidedOpening = true
             };
         }
         private NewStoryForm CreateNewStoryDialog()
@@ -783,11 +808,12 @@ namespace Clio.Desktop
             {
                 if (dialog.ShowDialog(this) != DialogResult.OK) return;
                 starting = NewStorySettings(dialog.WorldSeed, dialog.SoundStyle, dialog.FoundingAncestry, dialog.FourBands, dialog.BandName, dialog.Culture, dialog.Pace);
+                starting.GuidedOpening = dialog.GuidedOpening;
                 game = new Game(starting);
                 journal = new StoryJournal(game); ClearNotices(false); inspectorPage = 0; inspectedBandId = 0; selectedAnimalId = -1; encounterChoice = false;
                 ClearReunionRoute(); ResetDiplomacy(); ResetGatheringUi(); ResetOpeningAnnouncement(); ResetEnding(); ResetStoryMode();
                 commands.Clear(); selected = game.Player.CellId; chronicleOffset = 0; languagePage = 0;
-                EnableWoodForStory(); EnableLivestockForStory(); EnableBattlesForStory();
+                EnableWoodForStory(); if (!GuidedGame) { EnableLivestockForStory(); EnableBattlesForStory(); }
                 culturePage = 0; ResetEconomyPage(); ResetUnitsPage(); ClearMapTransient(); ArmMapCommandBand(game.Player.Id);
                 page = 0; map.Focus(game.World.Cells[selected]); map.Zoom = MapRenderer.RegionalZoom; map.Fog = true;
                 ResetAdvisers();

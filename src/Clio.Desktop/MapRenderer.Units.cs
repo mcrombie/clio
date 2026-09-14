@@ -138,6 +138,8 @@ namespace Clio.Desktop
             List<ProjectedCell> stacks = new List<ProjectedCell>();
             HashSet<int> liveAnimals = new HashSet<int>(), liveBands = new HashSet<int>();
             // Group once per frame. No ecology work, random draws or discovery updates occur here.
+            // Wildlife remains observable in guided play even before animal
+            // orders are introduced. The ordinary stack layout keeps it compact.
             var animalCells = game.Beasts.Where(b => b.Count > 0 && Known(game, b.CellId)).GroupBy(b => b.CellId).ToDictionary(b => b.Key, b => b.OrderBy(a => a.Id).ToList());
             var bandCells = game.Bands.Where(b => b.Population > 0 && Known(game, b.CellId)).GroupBy(b => b.CellId).ToDictionary(b => b.Key, b => b.OrderBy(a => a.Id).ToList());
             foreach (ProjectedCell p in Visible)

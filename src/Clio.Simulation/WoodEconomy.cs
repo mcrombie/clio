@@ -50,7 +50,7 @@ namespace Clio.Simulation
 
         public static bool CanGather(Game game, Band band)
         {
-            return game != null && game.WoodEnabled && !game.IsOver && band != null && band.Population > 0 &&
+            return game != null && game.WoodEnabled && !game.GuidedOpening && !game.IsOver && band != null && band.Population > 0 &&
                 (!game.CanControlBand(band.Id) || game.ActionsFor(band.Id) > 0) && GatherYield(game, band) > 0;
         }
 
@@ -84,6 +84,7 @@ namespace Clio.Simulation
 
         public string GatherWood()
         {
+            if (GuidedOpening) return "Gather brings back food, wood and any salt available in this region together, for one influence.";
             if (!WoodEnabled) return "Wood is not part of this story's current rules.";
             string message; if (!CanAct(out message)) return message;
             if (!WoodEconomy.CanGather(this, ActionBand)) return "No usable wood can be collected here. Move to land with trees or scrub.";

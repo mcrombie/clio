@@ -19,13 +19,14 @@ namespace Clio.Desktop
     }
     internal sealed partial class MapRenderer : IDisposable
     {
-        internal const double RegionalZoom = 7.0, MaximumZoom = 18.0;
+        internal const double RegionalZoom = 7.0, GuidedOpeningZoom = 14.0, MaximumZoom = 18.0;
         public double Longitude, Latitude, Zoom = RegionalZoom;
         // A closer, gently oblique regional view keeps the land broad enough
         // to read. Planetary views retain the globe's original projection.
         internal double RegionalVerticalScale { get { return 1 - .30 * Math.Max(0, Math.Min(1, (Zoom - 1.8) / 3.2)); } }
         public bool Grid, PlaceLabels, Fog = true;
         public bool IsNavigating;
+        public bool GuidedPresentation, IntroPresentation;
         public int Layer;
         public int OrderPreviewCell = -1;
         public RectangleF Bounds = new RectangleF(0, 0, 1600, 960);
@@ -39,7 +40,7 @@ namespace Clio.Desktop
         private readonly Dictionary<int, ProjectedCell> projected = new Dictionary<int, ProjectedCell>();
         private readonly TerrainArt terrain = new TerrainArt();
         private Bitmap cachedTerrain;
-        private Bitmap backdrop, fogImage;
+        private Bitmap backdrop, hazeBackdrop, fogImage;
         private byte[] backdropPixels;
         private string lastTerrainKey;
         public void Focus(Cell cell) { Longitude = Math.Atan2(cell.Center.X, cell.Center.Z); Latitude = Math.Asin(cell.Center.Y); }
@@ -71,6 +72,7 @@ namespace Clio.Desktop
             Bounds = bounds;
             if (cachedTerrain != null) { cachedTerrain.Dispose(); cachedTerrain = null; }
             if (backdrop != null) { backdrop.Dispose(); backdrop = null; }
+            if (hazeBackdrop != null) { hazeBackdrop.Dispose(); hazeBackdrop = null; }
             if (fogImage != null) { fogImage.Dispose(); fogImage = null; }
             backdropPixels = null; lastTerrainKey = null;
         }
@@ -107,7 +109,7 @@ namespace Clio.Desktop
         {
             BuildGeometry(game);
             GraphicsState state = g.Save(); g.SetClip(Bounds);
-            string key = Longitude.ToString("R") + "/" + Latitude.ToString("R") + "/" + Zoom.ToString("R") + "/" + Fog + "/" + Grid + "/" + Layer + "/" + game.Turn + "/" + game.Actions + "/" + game.Explored.Count + "/" + game.Bands.Count + "/" + IsNavigating + "/" + CommandedBandId + "/" + game.TribesEnabled + "/" + game.TerrainTravelEnabled;
+            string key = Longitude.ToString("R") + "/" + Latitude.ToString("R") + "/" + Zoom.ToString("R") + "/" + Fog + "/" + Grid + "/" + Layer + "/" + game.Turn + "/" + game.Actions + "/" + game.Explored.Count + "/" + game.Bands.Count + "/" + IsNavigating + "/" + CommandedBandId + "/" + game.TribesEnabled + "/" + game.TerrainTravelEnabled + "/" + GuidedPresentation + "/" + IntroPresentation;
             if (cachedTerrain == null || lastTerrainKey != key)
             {
                 if (cachedTerrain == null) cachedTerrain = new Bitmap((int)Bounds.Width, (int)Bounds.Height, PixelFormat.Format32bppPArgb);
@@ -116,7 +118,24 @@ namespace Clio.Desktop
                 lastTerrainKey = key;
             }
             g.DrawImage(cachedTerrain, Bounds);
-            DrawSelection(g, game, selected); DrawOrderPreview(g, game); DrawReunionRoute(g, game); DrawMapInterests(g, game); DrawSaltSources(g, game); DrawLife(g, game, selected); DrawLabels(g, game); DrawCompass(g);
+            if (GuidedPresentation && !IntroPresentation) DrawGuidedRegionBoundary(g, game);
+            if (!GuidedPresentation && !IntroPresentation)
+            {
+                DrawSelection(g, game, selected); DrawOrderPreview(g, game); DrawReunionRoute(g, game);
+                DrawMapInterests(g, game); DrawSaltSources(g, game);
+            }
+            else
+            {
+                interestTargets.Clear(); saltTargets.Clear(); foodInterestCells.Clear();
+                frontierInterestCells.Clear(); saltMarkerCells.Clear(); drawnReunionCells.Clear();
+            }
+            if (!IntroPresentation) { DrawLife(g, game, selected); DrawLabels(g, game); }
+            else
+            {
+                animalTargets.Clear(); bandTargets.Clear(); unitStackTargets.Clear(); unitLabelBounds.Clear();
+                animationEndsAt = 0;
+            }
+            if (!GuidedPresentation && !IntroPresentation) DrawCompass(g);
             g.Restore(state);
         }
         private void DrawLandscape(Graphics g, Game game)
@@ -133,17 +152,24 @@ namespace Clio.Desktop
                         using (PathGradientBrush wash = new PathGradientBrush(sheet))
                         {
                             wash.CenterPoint = new PointF(Bounds.X + Bounds.Width * .49f, Bounds.Y + Bounds.Height * .43f);
-                            wash.CenterColor = Color.FromArgb(242, 233, 211);
-                            wash.SurroundColors = new[] { Color.FromArgb(220, 202, 164) };
+                            wash.CenterColor = Color.FromArgb(236, 220, 185);
+                            wash.SurroundColors = new[] { Color.FromArgb(201, 174, 123) };
                             wash.FocusScales = new PointF(.22f, .25f);
                             bg.FillPath(wash, sheet);
                         }
                     }
                     MapPaper.Texture(bg, Bounds);
+                    MapPaper.AtlasWear(bg, Bounds);
                     DrawChartLines(bg);
                 }
-                BitmapData data = backdrop.LockBits(new Rectangle(0, 0, backdrop.Width, backdrop.Height), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
-                backdropPixels = new byte[data.Stride * data.Height]; Marshal.Copy(data.Scan0, backdropPixels, 0, backdropPixels.Length); backdrop.UnlockBits(data);
+                hazeBackdrop = new Bitmap((int)Bounds.Width, (int)Bounds.Height, PixelFormat.Format32bppArgb);
+                using (Graphics bg = Graphics.FromImage(hazeBackdrop))
+                {
+                    bg.TranslateTransform(-Bounds.X, -Bounds.Y);
+                    MapPaper.DistantHaze(bg, Bounds); MapPaper.AtlasWear(bg, Bounds);
+                }
+                BitmapData data = hazeBackdrop.LockBits(new Rectangle(0, 0, hazeBackdrop.Width, hazeBackdrop.Height), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+                backdropPixels = new byte[data.Stride * data.Height]; Marshal.Copy(data.Scan0, backdropPixels, 0, backdropPixels.Length); hazeBackdrop.UnlockBits(data);
             }
             g.DrawImage(backdrop, Bounds); vertexColors.Clear();
             List<Band> knownBands = game.Bands.Where(b => b.Population > 0 && Known(game, b.CellId)).ToList();
@@ -211,9 +237,10 @@ namespace Clio.Desktop
             }
             if (Layer != 0) DrawRivers(g, game);
             MapPaper.Texture(g, Bounds);
-            if (Grid) using (Pen grid = new Pen(Color.FromArgb(85, MapPaper.MutedInk), .7f)) foreach (ProjectedCell p in Visible) if (Known(game, p.Cell.Id)) g.DrawPolygon(grid, p.Polygon);
+            MapPaper.AtlasWear(g, Bounds);
+            if (Grid && !GuidedPresentation && !IntroPresentation) using (Pen grid = new Pen(Color.FromArgb(85, MapPaper.MutedInk), .7f)) foreach (ProjectedCell p in Visible) if (Known(game, p.Cell.Id)) g.DrawPolygon(grid, p.Polygon);
             if (Layer == 2) DrawRegionBorders(g, game);
-            if (Fog) DrawMistBoundary(g, game); else DrawAtmosphere(g);
+            if (Fog) { DrawMistBoundary(g, game); DrawFrontierRumors(g, game); } else DrawAtmosphere(g);
         }
         private Color Shade(Cell cell, Game game, List<Band> bands)
         {
@@ -295,13 +322,21 @@ namespace Clio.Desktop
                 byte[] raw = new byte[data.Stride * h]; Marshal.Copy(data.Scan0, raw, 0, raw.Length); mask.UnlockBits(data);
                 for (int i = 0; i < values.Length; i++) values[i] = raw[i * 4];
             }
-            values = Blur(Blur(values, w, h, 3), w, h, 2);
+            int[] distance = UnknownDistance(values, w, h);
+            values = Blur(Blur(values, w, h, 5), w, h, 3);
             if (fogImage == null) fogImage = new Bitmap(w, h, PixelFormat.Format32bppArgb);
             byte[] pixels = new byte[w * h * 4];
             for (int y = 0; y < h; y++) for (int x = 0; x < w; x++)
             {
                 int to = (y * w + x) * 4, from = ((y * scale + 2) * (int)Bounds.Width + x * scale + 2) * 4;
-                pixels[to] = backdropPixels[from]; pixels[to + 1] = backdropPixels[from + 1]; pixels[to + 2] = backdropPixels[from + 2];
+                // Only distance from the observed outline informs this wash.
+                // Nearby blank margins hold uncertain notes; the far country
+                // remains completely opaque, with no undiscovered geography.
+                float near = Math.Max(0, 1 - distance[y * w + x] * scale / (3f * 190));
+                float paper = near * near * .64f;
+                pixels[to] = (byte)(backdropPixels[from] * (1 - paper) + 185 * paper);
+                pixels[to + 1] = (byte)(backdropPixels[from + 1] * (1 - paper) + 220 * paper);
+                pixels[to + 2] = (byte)(backdropPixels[from + 2] * (1 - paper) + 236 * paper);
                 float known = values[y * w + x];
                 float opacity = 1 - Math.Max(0, Math.Min(1, (known - 38) / 217));
                 pixels[to + 3] = (byte)(255 * opacity);
@@ -409,6 +444,6 @@ namespace Clio.Desktop
             Color[] colors = { Color.FromArgb(180, 164, 107), Color.FromArgb(110, 161, 140), Color.FromArgb(189, 127, 102), Color.FromArgb(113, 150, 176), Color.FromArgb(162, 144, 187), Color.FromArgb(185, 174, 111), Color.FromArgb(100, 164, 157) };
             return colors[(int)((uint)region % colors.Length)];
         }
-        public void Dispose() { if (cachedTerrain != null) cachedTerrain.Dispose(); if (backdrop != null) backdrop.Dispose(); if (fogImage != null) fogImage.Dispose(); if (unitClip != null) unitClip.Dispose(); terrain.Dispose(); }
+        public void Dispose() { if (cachedTerrain != null) cachedTerrain.Dispose(); if (backdrop != null) backdrop.Dispose(); if (hazeBackdrop != null) hazeBackdrop.Dispose(); if (fogImage != null) fogImage.Dispose(); if (unitClip != null) unitClip.Dispose(); terrain.Dispose(); }
     }
 }

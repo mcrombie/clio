@@ -3,7 +3,7 @@ $ErrorActionPreference = 'Stop'
 $projectRoot = $PSScriptRoot
 $compilerPath = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
 if (-not (Test-Path -LiteralPath $compilerPath)) { throw 'The Windows .NET Framework C# compiler is required for this build script.' }
-$outputPath = Join-Path $projectRoot 'build\bestiary-35'
+$outputPath = Join-Path $projectRoot 'build\sage-37'
 New-Item -ItemType Directory -Path $outputPath -Force | Out-Null
 $coreSources = @(Get-ChildItem -LiteralPath (Join-Path $projectRoot 'src\Clio.Simulation') -Filter '*.cs' | ForEach-Object { $_.FullName })
 $coreLibrary = Join-Path $outputPath 'Clio.Simulation.dll'
@@ -13,13 +13,28 @@ $desktopSources = @(Get-ChildItem -LiteralPath (Join-Path $projectRoot 'src\Clio
 $desktopApp = Join-Path $outputPath 'Clio.exe'
 $desktopIcon = Join-Path $projectRoot 'src\Clio.Desktop\Clio.ico'
 $portraitRoot = Join-Path $projectRoot 'src\Clio.Desktop\Assets\Advisers'
-$portraitResources = @('sula', 'tavo', 'yara', 'lian') | ForEach-Object {
+$portraitResources = @('sula', 'tavo', 'yara', 'lian', 'first-adviser') | ForEach-Object {
     $portraitFile = Join-Path $portraitRoot ($_ + '.png')
     if (-not (Test-Path -LiteralPath $portraitFile -PathType Leaf)) { throw "Missing adviser portrait: $portraitFile" }
     "/resource:$portraitFile,Clio.Advisers.$_.png"
 }
-& $compilerPath /nologo /target:winexe /optimize+ /warn:4 "/out:$desktopApp" "/win32icon:$desktopIcon" "/reference:$coreLibrary" /reference:System.Drawing.dll /reference:System.Windows.Forms.dll $portraitResources $desktopSources
+$voiceResources = @('opening', 'influence') | ForEach-Object {
+    $recording = Join-Path $portraitRoot ('Voice\' + $_ + '.wav')
+    if (-not (Test-Path -LiteralPath $recording -PathType Leaf)) { throw "Missing adviser recording: $recording" }
+    "/resource:$recording,Clio.Voice.$_.wav"
+}
+Add-Type -AssemblyName System.Speech
+$speechAssembly = [System.Speech.Synthesis.SpeechSynthesizer].Assembly.Location
+& $compilerPath /nologo /target:winexe /optimize+ /warn:4 "/out:$desktopApp" "/win32icon:$desktopIcon" "/reference:$coreLibrary" "/reference:$speechAssembly" /reference:System.Drawing.dll /reference:System.Windows.Forms.dll $portraitResources $voiceResources $desktopSources
 if ($LASTEXITCODE -ne 0) { throw 'Desktop compilation failed.' }
+$voiceSource = Join-Path $projectRoot 'build\narration\runtime'
+if (Test-Path -LiteralPath (Join-Path $voiceSource 'piper.exe') -PathType Leaf) {
+    $voiceDestination = Join-Path $outputPath 'voice'
+    New-Item -ItemType Directory -Path $voiceDestination -Force | Out-Null
+    Get-ChildItem -LiteralPath $voiceSource | Copy-Item -Destination $voiceDestination -Recurse -Force
+} else {
+    Write-Output 'Opening recordings included; dynamic narration will use Windows speech. Run tools\prepare-adviser-voice.ps1 to add the offline British voice.'
+}
 Write-Output "Built $desktopApp"
 if ($Test) {
     $testSources = @(Get-ChildItem -LiteralPath (Join-Path $projectRoot 'tests') -Filter '*.cs' | ForEach-Object { $_.FullName })

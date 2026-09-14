@@ -262,6 +262,7 @@ namespace Clio.Simulation
 
         public string AttackAnimal(int id)
         {
+            if (GuidedOpening) return GuidedOrdersOnly;
             string error = EncounterRules.Validate(this, UnitKind.Animal, id, false); if (error.Length > 0) return error;
             Beast target = Beasts.Find(b => b.Id == id); ActionPoints -= TravelRules.EncounterCost(this, ActionBand, target.CellId);
             if (TacticalBattlesEnabled) battleApproachCell = ActionBand.CellId;
@@ -274,6 +275,7 @@ namespace Clio.Simulation
 
         public string BefriendAnimal(int id)
         {
+            if (GuidedOpening) return GuidedOrdersOnly;
             string error = EncounterRules.Validate(this, UnitKind.Animal, id, true); if (error.Length > 0) return error;
             Beast target = Beasts.Find(b => b.Id == id); UnitProfile profile = EncounterRules.Animal(this, target); ActionPoints -= TravelRules.EncounterCost(this, ActionBand, target.CellId);
             if (ActionBand.CellId != target.CellId) RelocateBand(ActionBand, target.CellId, true, EncounterKind.Move);
@@ -320,6 +322,7 @@ namespace Clio.Simulation
 
         public string AttackBand(int id)
         {
+            if (GuidedOpening) return GuidedOrdersOnly;
             string error = EncounterRules.Validate(this, UnitKind.Band, id, false); if (error.Length > 0) return error;
             Band target = Bands.Find(b => b.Id == id); ActionPoints -= TravelRules.EncounterCost(this, ActionBand, target.CellId);
             if (TacticalBattlesEnabled) battleApproachCell = ActionBand.CellId;

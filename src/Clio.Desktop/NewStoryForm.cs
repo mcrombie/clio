@@ -11,7 +11,7 @@ namespace Clio.Desktop
         private readonly ComboBox culture = new ComboBox(), style = new ComboBox(), ancestry = new ComboBox();
         private readonly TextBox name = new TextBox();
         private readonly NumericUpDown seed = new NumericUpDown();
-        private readonly CheckBox four = new CheckBox();
+        private readonly CheckBox four = new CheckBox(), guided = new CheckBox();
         private readonly Label description = new Label(), vocabulary = new Label(), nameHint = new Label(), paletteLabel = new Label(), turnDescription = new Label();
         private readonly ToolTip hints = new ToolTip();
         public int WorldSeed { get { return (int)seed.Value; } }
@@ -22,7 +22,8 @@ namespace Clio.Desktop
         // Explicitly record the current suggestion so released blank-name saves
         // can keep their original founding name under the old replay rules.
         public string BandName { get { return Culture == CultureTemplateId.Zhol && String.IsNullOrWhiteSpace(name.Text) ? ZholPeople : name.Text; } }
-        public bool FourBands { get { return four.Checked; } }
+        public bool GuidedOpening { get { return guided.Checked; } }
+        public bool FourBands { get { return !guided.Checked && four.Checked; } }
 
         public NewStoryForm(int worldSeed, LanguageStyle soundStyle, Ancestry foundingAncestry, bool fourBands, CultureTemplateId foundingCulture)
             : this(worldSeed, soundStyle, foundingAncestry, fourBands, foundingCulture, HistoryPace.Abstract) { }
@@ -52,13 +53,13 @@ namespace Clio.Desktop
             AddLabel("Founding ancestry", 28, 416, 524);
             ancestry.SetBounds(28, 440, 524, 29); ancestry.DropDownStyle = ComboBoxStyle.DropDownList;
             ancestry.Items.AddRange(Enum.GetNames(typeof(Ancestry))); ancestry.SelectedIndex = (int)foundingAncestry;
-            four.SetBounds(28, 488, 524, 30); four.Text = "Four founding bands, each with its own language"; four.Checked = fourBands;
-            turnDescription.SetBounds(28, 538, 524, 54); turnDescription.ForeColor = Art.Ink;
-            turnDescription.Text = "Two priorities per band, each turn. Daughters remain in your tribe. Food and salt sustain each household.";
+            guided.SetBounds(28, 482, 524, 30); guided.Text = "Guided beginning · one influence per turn"; guided.Checked = true;
+            four.SetBounds(28, 514, 524, 30); four.Text = "Four founding bands, each with its own language"; four.Checked = fourBands;
+            turnDescription.SetBounds(28, 551, 524, 40); turnDescription.ForeColor = Art.Ink;
             Label note = new Label { Text = "Begin with fifty people in a generated world. Your chosen culture shapes their first names and language; their history is open.", Left = 28, Top = 595, Width = 524, Height = 44, ForeColor = Art.Muted };
             Button begin = new Button { Text = "Begin story", Left = 370, Top = 645, Width = 182, Height = 43, DialogResult = DialogResult.OK };
             Button cancel = new Button { Text = "Cancel", Left = 256, Top = 645, Width = 100, Height = 43, DialogResult = DialogResult.Cancel };
-            Controls.AddRange(new Control[] { culture, description, vocabulary, name, nameHint, paletteLabel, seed, style, ancestry, four, turnDescription, note, begin, cancel });
+            Controls.AddRange(new Control[] { culture, description, vocabulary, name, nameHint, paletteLabel, seed, style, ancestry, guided, four, turnDescription, note, begin, cancel });
             foreach (Control control in Controls)
             {
                 if (control is TextBox || control is ComboBox || control is NumericUpDown)
@@ -83,9 +84,10 @@ namespace Clio.Desktop
             style.SelectedIndexChanged += delegate { UpdatePreview(); };
             seed.ValueChanged += delegate { UpdatePreview(); };
             four.CheckedChanged += delegate { UpdatePreview(); };
+            guided.CheckedChanged += delegate { UpdatePreview(); };
             culture.SelectedIndex = (int)foundingCulture;
             // Keyboard traversal follows the page rather than the order of decorative labels.
-            Control[] order = { culture, name, seed, style, ancestry, four, begin, cancel };
+            Control[] order = { culture, name, seed, style, ancestry, guided, four, begin, cancel };
             for (int i = 0; i < order.Length; i++) order[i].TabIndex = i;
         }
         private void AddLabel(string text, int x, int y, int width)
@@ -107,13 +109,17 @@ namespace Clio.Desktop
         }
         private void UpdatePreview()
         {
+            four.Enabled = !GuidedOpening;
+            turnDescription.Text = GuidedOpening
+                ? "Rest on turn 1. The First Adviser introduces Gather and Move on turn 2, with one influence per turn."
+                : "Two priorities per band, each turn. Daughters remain in your tribe. Food and salt sustain each household.";
             if (culture.SelectedIndex < 0 || style.SelectedIndex < 0) return;
             LanguageProfile language = HistoricalCultures.Create(Culture, WorldSeed, 0, SoundStyle);
             description.Text = HistoricalCultures.Description(Culture);
             vocabulary.Text = "water · " + language.Words["water"] + "     fire · " + language.Words["fire"] + "     people · " + language.Words["people"];
             string suggested = Culture == CultureTemplateId.Zhol ? ZholPeople : Culture == CultureTemplateId.Generated ? LanguageGenerator.PlaceName(language, "people", 0) : HistoricalCultures.DefaultBandName(Culture);
             nameHint.Text = "Leave blank for " + suggested + ".";
-            style.Enabled = Culture == CultureTemplateId.Generated || four.Checked;
+            style.Enabled = Culture == CultureTemplateId.Generated || FourBands;
             paletteLabel.Text = Culture == CultureTemplateId.Generated ? "Generated sound palette" : "Other bands' sound palette";
         }
         protected override void OnPaint(PaintEventArgs e)
@@ -123,7 +129,6 @@ namespace Clio.Desktop
             e.Graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
             Typography.Line(e.Graphics, "Choose the first hearths", new RectangleF(26, 16, 528, 45), 34, Art.Ink, TypeRole.Display);
             Typography.Line(e.Graphics, "An imagined world. A culture to carry into it.", new RectangleF(28, 62, 524, 27), 18, Art.Muted, TypeRole.Annotation);
-            Art.Rule(e.Graphics, 28, 527, 524);
         }
         protected override void Dispose(bool disposing)
         { if (disposing) hints.Dispose(); base.Dispose(disposing); }

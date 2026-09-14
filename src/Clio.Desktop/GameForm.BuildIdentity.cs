@@ -6,7 +6,7 @@ namespace Clio.Desktop
     {
         // Compiled into the application so a copied or pinned old executable
         // cannot advertise the build selected by today's launcher record.
-        internal const string BuildIdentity = "bestiary-35";
+        internal const string BuildIdentity = "sage-37";
         internal const string BuildWindowTitle = "Clio — The living atlas [" + BuildIdentity + "]";
 
         private void DrawBuildIdentity(Graphics g)

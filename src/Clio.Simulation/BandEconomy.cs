@@ -122,6 +122,11 @@ namespace Clio.Simulation
         {
             if (game == null) throw new ArgumentNullException("game");
             if (band == null) throw new ArgumentNullException("band");
+            if (game.GuidedOpening && game.Turn == 1)
+                return new EconomyForecast { BandId = band.Id, Turn = game.Turn, StartingFood = band.Food,
+                    EndingFood = band.Food, FoodBeforeSpoilage = band.Food, EndingPopulation = band.Population,
+                    StartingSalt = band.Salt, EndingSalt = band.Salt, EndingSaltShortageTurns = band.SaltShortageTurns,
+                    StartingWood = band.Wood, EndingWood = band.Wood };
             DomesticEconomy domestic = DomesticEffects(game, band);
             EconomyForecast result = new EconomyForecast { BandId = band.Id, Turn = game.Turn,
                 StartingFood = band.Food, CampFood = CampFood(game, band), CattleFood = domestic.CattleFood, MilkFood = domestic.MilkFood,

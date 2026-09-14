@@ -8,19 +8,21 @@ using Clio.Simulation;
 namespace Clio.Desktop
 {
     /// <summary>
-    /// A saved story's header: the settings it was founded with and its decision record. CLIO-STORY-15
-    /// writes named key=value lines ended by a blank line. Earlier versions stored the same values by
+    /// A saved story's header: the settings it was founded with and its decision record. CLIO-STORY-16
+    /// writes named key=value lines ended by a blank line. Version 15 introduced this format;
+    /// earlier versions stored the same values by
     /// position, each version appending to the last, so one frozen key order reads all of them.
     /// </summary>
     internal sealed class StoryHeader
     {
-        internal const string CurrentVersion = "CLIO-STORY-15";
-        private const int CurrentVersionNumber = 15;
+        internal const string CurrentVersion = "CLIO-STORY-16";
+        private const int CurrentVersionNumber = 16;
+        private const int FirstNamedVersion = 15;
         private const int MaximumNameLength = 40;
 
         // Frozen. CLIO-STORY-1 to 14 stored these values on lines 1-15 in exactly this order: version 1
         // wrote the first five, each later version appended more, and versions 11-14 wrote all fifteen.
-        // Version 15 requires every key. A key added later must be optional and default to the old behavior.
+        // Version 15 requires every key. Later keys are optional and default to the old behavior.
         private static readonly string[] Keys = { "seed", "style", "ancestry", "bands", "name", "culture", "pace", "rules",
             "places", "salt", "tribes", "terrain", "personalities", "gatherings", "decisions" };
 
@@ -44,7 +46,9 @@ namespace Clio.Desktop
             new RuleFlag { Key = "personalities", Enabled = "BandPersonalities", Legacy = "LegacyPersonalities", Unknown = "Unknown band personality rules.",
                 Get = s => s.BandPersonalitiesEnabled, Set = (s, on) => s.BandPersonalitiesEnabled = on },
             new RuleFlag { Key = "gatherings", Enabled = "GatheringRelations", Legacy = "LegacyGatherings", Unknown = "Unknown gathering rules.",
-                Get = s => s.GatheringsEnabled, Set = (s, on) => s.GatheringsEnabled = on }
+                Get = s => s.GatheringsEnabled, Set = (s, on) => s.GatheringsEnabled = on },
+            new RuleFlag { Key = "guided", Enabled = "GuidedOpening", Legacy = "LegacyOpening", Unknown = "Unknown opening rules.",
+                Get = s => s.GuidedOpening, Set = (s, on) => s.GuidedOpening = on }
         };
 
         internal GameSettings Settings;
@@ -69,6 +73,7 @@ namespace Clio.Desktop
             values.Add("decisions", decisions);
             List<string> lines = new List<string> { CurrentVersion };
             foreach (string key in Keys) lines.Add(key + "=" + values[key]);
+            lines.Add("guided=" + values["guided"]);
             lines.Add("");
             return lines;
         }
@@ -79,7 +84,7 @@ namespace Clio.Desktop
             if (version == 0) throw new InvalidDataException("Unsupported story version.");
             Dictionary<string, string> values = new Dictionary<string, string>(StringComparer.Ordinal);
             int commandStart;
-            if (version < CurrentVersionNumber)
+            if (version < FirstNamedVersion)
             {
                 int count = Math.Min(version, 11) + 4;
                 if (lines.Length <= count) throw new InvalidDataException("The story header is incomplete.");
@@ -93,11 +98,14 @@ namespace Clio.Desktop
                 {
                     int separator = lines[line].IndexOf('=');
                     string key = separator > 0 ? lines[line].Substring(0, separator) : "";
-                    if (Array.IndexOf(Keys, key) < 0) throw new InvalidDataException("Unknown story header entry.");
+                    if (Array.IndexOf(Keys, key) < 0 && !(version >= 16 && key == "guided"))
+                        throw new InvalidDataException("Unknown story header entry.");
                     if (values.ContainsKey(key)) throw new InvalidDataException("Repeated story header entry: " + key + ".");
                     values.Add(key, lines[line].Substring(separator + 1));
                 }
-                if (line == lines.Length || values.Count != Keys.Length) throw new InvalidDataException("The story header is incomplete.");
+                if (line == lines.Length) throw new InvalidDataException("The story header is incomplete.");
+                foreach (string key in Keys)
+                    if (!values.ContainsKey(key)) throw new InvalidDataException("The story header is incomplete.");
                 commandStart = line + 1;
             }
 

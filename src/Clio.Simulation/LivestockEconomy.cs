@@ -137,6 +137,7 @@ namespace Clio.Simulation
 
         public string SlaughterHerd(int id)
         {
+            if (GuidedOpening) return GuidedOrdersOnly;
             if (!LivestockEnabled) return "Livestock is not part of this story's current rules.";
             string error; if (!CanAct(out error)) return error;
             Beast herd = Beasts.Find(b => b.Id == id);

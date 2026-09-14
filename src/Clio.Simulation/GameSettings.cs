@@ -17,6 +17,7 @@ namespace Clio.Simulation
         public HistoryPace Pace = HistoryPace.LegacySeasons;
         public SimulationRules Rules = SimulationRules.Classic;
         public bool CulturalPlaceNames, SaltEnabled, TribesEnabled, TerrainTravelEnabled, BandPersonalitiesEnabled, GatheringsEnabled;
+        public bool GuidedOpening;
 
         public GameSettings() { }
 
